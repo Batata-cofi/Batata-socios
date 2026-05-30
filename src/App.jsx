@@ -1,5 +1,34 @@
 import { useState } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+
+
+// === CONTRATO DE APIs ===
+// Fudo — Ventas
+//   GET /ventas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+//   Response: { fecha: string, total: number, transacciones: number }[]
+//
+// Fudo — Ranking de productos
+//   GET /productos/ranking?periodo=mes
+//   Response: { nombre: string, unidades: number, total: number }[]
+//
+// Google Sheets — Gastos fijos
+//   GET /sheets/{id}/values/GastosFijos
+//   Response: { concepto: string, monto: number, cat: string }[]
+//
+// Google Sheets — Stock
+//   GET /sheets/{id}/values/Stock
+//   Response: { item: string, stock: number, min: number, max: number }[]
+// ========================
+
+const DATA_SOURCE = "mock"; // "mock" | "live" — cambiar cuando conecte APIs
+
+// ESTIMADO — reemplazar con dato real de Fudo cuando esté conectado
+const VENTAS_ABRIL = {
+  total: 19053900,        // abril 2026 real (de planilla)
+  ticketPromedio: 11800,  // ESTIMADO
+  promedioDiario: 572000, // ESTIMADO
+  diasOp: 22,             // ESTIMADO
+};
 
 const PASS = "Julia2420";
 const C = {
@@ -570,13 +599,25 @@ const COMBOS = [
 // ── HELPERS ───────────────────────────────────────────────────────
 const Pill=({label,color})=>(<span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:`${color}22`,color,border:`1px solid ${color}44`,fontWeight:600}}>{label}</span>);
 const SL=({children})=>(<div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".05em",textTransform:"uppercase",margin:"1.25rem 0 .6rem"}}>{children}</div>);
-const KPI=({label,value,sub,color,borde})=>(
-  <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${borde?borde+"44":C.border}`}}>
-    <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{label}</div>
-    <div style={{fontSize:18,fontWeight:700,color:color||C.text}}>{value}</div>
-    {sub&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}
-  </div>
-);
+const KPI=({label,value,sub,color,borde,prev,rawValue})=>{
+  let varPct=null, varDir=null;
+  if(prev!=null && rawValue!=null && prev>0){
+    varPct=((rawValue-prev)/prev*100);
+    varDir=varPct>=0?"↑":"↓";
+  }
+  return(
+    <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${borde?borde+"44":C.border}`}}>
+      <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{label}</div>
+      <div style={{fontSize:18,fontWeight:700,color:color||C.text}}>{value}</div>
+      {varPct!=null&&(
+        <div style={{fontSize:10,marginTop:3,color:varDir==="↑"?C.green:C.red,fontWeight:600}}>
+          {varDir} {Math.abs(varPct).toFixed(1)}% vs abril
+        </div>
+      )}
+      {sub&&!varPct&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}
+    </div>
+  );
+};
 const AC={potenciar:C.green,subir:C.yellow,revisar:C.red,ok:C.blue};
 const AL={potenciar:"⭐ Potenciar",subir:"↑ Subir precio",revisar:"⚠️ Revisar",ok:"✓ OK"};
 
@@ -1006,14 +1047,20 @@ function VistaMacro({onSwitch}){
   const [notif,setNotif]=useState({});
   const [modalNotif,setModalNotif]=useState(null);
   const [fichaprod,setFichaprod]=useState(null);
+  const [provPct,setProvPct]=useState(0.27);
 
   const totalGF=gf.reduce((s,g)=>s+g.monto,0);
-  const provMes=4500000;
   const ventas=DIAS_MAYO.reduce((s,d)=>s+d.v,0);
   const diasOp=17;
+  const txnTotal=602; // ESTIMADO — reemplazar con dato real de Fudo
   const promDia=Math.round(ventas/diasOp);
   const proyMes=promDia*24;
+  const provMes=Math.round(proyMes*provPct);
+  const sueldosSocios=1000000;
+  const breakeven=totalGF+provMes+sueldosSocios;
+  const breakevenDiario=Math.round(breakeven/24);
   const resultado=proyMes-totalGF-provMes;
+  const resultadoNeto=resultado-sueldosSocios;
   const totalCaja=saldos.mp+saldos.bbva+saldos.ef;
   const stockRojo=stock.filter(s=>s.stock<s.min);
   const stockAmarillo=stock.filter(s=>s.stock>=s.min&&s.stock<s.min*1.5);
@@ -1052,7 +1099,12 @@ function VistaMacro({onSwitch}){
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:980,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0 8px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{fontSize:22,fontWeight:700,color:C.accent,letterSpacing:"-1px"}}>batata <span style={{fontSize:12,color:C.muted,fontWeight:400}}>macro</span></div>
+            <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:DATA_SOURCE==="live"?C.greenDim:C.card2,color:DATA_SOURCE==="live"?C.green:C.muted,border:`1px solid ${DATA_SOURCE==="live"?C.green:C.border}`,fontWeight:600}}>
+              ● {DATA_SOURCE==="live"?"Live":"Mock"}
+            </span>
+          </div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               {stockRojo.length>0&&<span style={{fontSize:10,padding:"3px 8px",background:C.redDim,color:C.red,borderRadius:20,border:`1px solid ${C.red}44`}}>🔴 {stockRojo.length} sin stock</span>}
               {stockAmarillo.length>0&&<span style={{fontSize:10,padding:"3px 8px",background:C.yellowDim,color:C.yellow,borderRadius:20,border:`1px solid ${C.yellow}44`}}>🟡 {stockAmarillo.length} bajo</span>}
@@ -1075,10 +1127,15 @@ function VistaMacro({onSwitch}){
               <div style={{fontSize:24,fontWeight:700,marginTop:2}}>Estado del negocio</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:20}}>
-              <KPI label="Ventas acumuladas"  value={fmtK(ventas)}    sub={`${diasOp} días`}   color={C.green}/>
-              <KPI label="Proyección mayo"    value={fmtK(proyMes)}   sub="a promedio actual"/>
-              <KPI label="Ticket promedio"    value={fmt(Math.round(ventas/602))} sub="obj: $13.000" color={C.accent}/>
-              <KPI label="Resultado est."     value={fmtK(resultado)} sub="ventas − GF − prov" color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
+              <KPI label="Ventas acumuladas"  value={fmtK(ventas)}    sub={`${diasOp} días`}   color={C.green}
+                prev={VENTAS_ABRIL.total} rawValue={ventas}/>
+              <KPI label="Proyección mayo"    value={fmtK(proyMes)}   color={C.text}
+                prev={VENTAS_ABRIL.total} rawValue={proyMes}/>
+              <KPI label="Ticket promedio"    value={fmt(Math.round(ventas/txnTotal))} sub="obj: $13.000" color={C.accent}
+                prev={VENTAS_ABRIL.ticketPromedio} rawValue={Math.round(ventas/txnTotal)}/>
+              <KPI label="Resultado neto est." value={fmtK(resultadoNeto)} sub="después de sueldos" color={resultadoNeto>0?C.green:C.red} borde={resultadoNeto>0?C.green:C.red}
+                prev={0} rawValue={resultadoNeto}/>
+              <KPI label="Punto de equilibrio" value={fmtK(breakeven)} sub="necesitás facturar esto" color={C.blue}/>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
               <div style={{fontSize:12,fontWeight:600,marginBottom:6}}>Ventas diarias — Mayo 2026</div>
@@ -1098,6 +1155,8 @@ function VistaMacro({onSwitch}){
                   <YAxis tick={{fontSize:9,fill:C.muted}} tickLine={false} axisLine={false} tickFormatter={v=>v>0?`$${Math.round(v/1000)}k`:""}/>
                   <Tooltip formatter={v=>[v>0?fmt(v):"Sin operación","Ventas"]} labelFormatter={l=>`Día ${l} — ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(2026,4,parseInt(l)).getDay()]}`} contentStyle={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}/>
                   <Area type="monotone" dataKey="v" stroke={C.accent} fill="url(#g1)" strokeWidth={2} dot={false}/>
+                  <ReferenceLine y={breakevenDiario} stroke={C.blue} strokeDasharray="4 4" strokeWidth={1.5}
+                    label={{value:`Meta ${Math.round(breakevenDiario/1000)}k`,position:"insideTopRight",fontSize:9,fill:C.blue}}/>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -1487,23 +1546,32 @@ function VistaMacro({onSwitch}){
         )}
 
         {/* ═══ RESULTADO ═══ */}
-        {tab==="resultado"&&(
+        {tab==="resultado"&&(()=>{
+          // Rentabilidad por canal
+          const canales=[
+            {nombre:"Local (mostrador)",pct:0.70,comision:0.0,    tarjeta:0.0501},
+            {nombre:"PedidosYa",         pct:0.15,comision:0.30,   tarjeta:0},
+            {nombre:"Big Box",           pct:0.15,comision:0.25,   tarjeta:0},
+          ];
+          return(
           <div>
             <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Resultado del mes</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:20}}>P&L proyectado · Mayo 2026</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:20}}>
-              <KPI label="Facturación proy."  value={fmtK(proyMes)}   color={C.green}/>
-              <KPI label="Gastos fijos"        value={fmtK(totalGF)}   color={C.red}/>
-              <KPI label="Proveedores est."    value={fmtK(provMes)}   color={C.yellow}/>
-              <KPI label="Resultado operativo" value={fmtK(resultado)} color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
+              <KPI label="Facturación proy."   value={fmtK(proyMes)}       color={C.green}
+                prev={VENTAS_ABRIL.total} rawValue={proyMes}/>
+              <KPI label="Gastos fijos"         value={fmtK(totalGF)}       color={C.red}/>
+              <KPI label="Proveedores"          value={fmtK(provMes)}       color={C.yellow} sub={`${(provPct*100).toFixed(0)}% ventas`}/>
+              <KPI label="Resultado operativo"  value={fmtK(resultado)}     color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
+              <KPI label="Resultado neto"       value={fmtK(resultadoNeto)} color={resultadoNeto>0?C.green:C.red} borde={resultadoNeto>0?C.green:C.red} sub="después de sueldos"/>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:20,border:`1px solid ${C.border}`,marginBottom:16}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <tbody>
                   {[
-                    {l:"Facturación proyectada",v:proyMes,c:C.green,signo:"+"},
-                    {l:"− Proveedores",v:provMes,c:C.red,signo:"-",pct:(provMes/proyMes*100).toFixed(1)},
-                    {l:"− Gastos fijos",v:totalGF,c:C.red,signo:"-",pct:(totalGF/proyMes*100).toFixed(1)},
+                    {l:"Facturación proyectada",    v:proyMes,       c:C.green,  signo:"+"},
+                    {l:"− Proveedores ("+( provPct*100).toFixed(0)+"%)", v:provMes, c:C.red, signo:"-",pct:(provMes/proyMes*100).toFixed(1)},
+                    {l:"− Gastos fijos",             v:totalGF,       c:C.red,    signo:"-",pct:(totalGF/proyMes*100).toFixed(1)},
                   ].map((r,i)=>(
                     <tr key={i} style={{borderBottom:`1px solid ${C.border}22`}}>
                       <td style={{padding:"9px 0"}}>{r.l}</td>
@@ -1516,19 +1584,60 @@ function VistaMacro({onSwitch}){
                     <td style={{padding:"10px 0",textAlign:"right",fontWeight:700,fontSize:16,color:resultado>0?C.green:C.red}}>{resultado>0?"+":""}{fmt(resultado)}</td>
                     <td style={{padding:"10px 0",textAlign:"right",fontSize:11,color:resultado>0?C.green:C.red}}>{(resultado/proyMes*100).toFixed(1)}%</td>
                   </tr>
-                  <tr>
-                    <td style={{padding:"8px 0",color:C.muted,fontSize:11}}>− Sueldo socios ($500k c/u)</td>
-                    <td style={{padding:"8px 0",textAlign:"right",color:C.muted}}>-{fmt(1000000)}</td>
-                    <td/>
+                  <tr style={{borderBottom:`1px solid ${C.border}22`}}>
+                    <td style={{padding:"8px 0",fontWeight:600}}>− Sueldo socios ($500k c/u)</td>
+                    <td style={{padding:"8px 0",textAlign:"right",fontWeight:600,color:C.red}}>-{fmt(sueldosSocios)}</td>
+                    <td style={{padding:"8px 0",textAlign:"right",fontSize:10,color:C.muted}}>{(sueldosSocios/proyMes*100).toFixed(1)}%</td>
                   </tr>
                   <tr style={{borderTop:`1px solid ${C.border}`}}>
-                    <td style={{padding:"10px 0",fontWeight:700}}>Resultado neto</td>
-                    <td style={{padding:"10px 0",textAlign:"right",fontWeight:700,color:(resultado-1000000)>0?C.green:C.red}}>{fmt(resultado-1000000)}</td>
-                    <td/>
+                    <td style={{padding:"10px 0",fontWeight:700,fontSize:14}}>Resultado neto</td>
+                    <td style={{padding:"10px 0",textAlign:"right",fontWeight:700,fontSize:16,color:resultadoNeto>0?C.green:C.red}}>{resultadoNeto>0?"+":""}{fmt(resultadoNeto)}</td>
+                    <td style={{padding:"10px 0",textAlign:"right",fontSize:11,color:resultadoNeto>0?C.green:C.red}}>{(resultadoNeto/proyMes*100).toFixed(1)}%</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            {/* Rentabilidad por canal */}
+            <div style={{fontSize:13,fontWeight:700,marginBottom:10,marginTop:4}}>Resultado por canal</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>
+              Un producto con margen ajustado en mostrador puede ser directamente negativo en delivery. PedidosYa cobra 30% y BigBox 25% — revisá qué vendés por cada canal.
+            </div>
+            <div style={{background:C.card,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",marginBottom:16}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr style={{background:C.card2}}>
+                    {["Canal","Facturación","Comisión","Margen neto","Rent. efectiva"].map(h=>(
+                      <th key={h} style={{textAlign:"left",padding:"8px 12px",fontSize:10,color:C.muted,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {canales.map((ch,i)=>{
+                    const facCh=Math.round(proyMes*ch.pct);
+                    const comision=Math.round(facCh*ch.comision);
+                    const tarjeta=Math.round(facCh*ch.tarjeta);
+                    const margen=facCh-comision-tarjeta;
+                    const rent=(margen/facCh*100);
+                    const rentC=rent>20?C.green:rent>10?C.yellow:C.red;
+                    return(
+                      <tr key={i} style={{borderBottom:i<canales.length-1?`1px solid ${C.border}22`:"none",background:i%2===0?"transparent":C.card2}}>
+                        <td style={{padding:"9px 12px",fontWeight:600}}>{ch.nombre}</td>
+                        <td style={{padding:"9px 12px"}}>{fmt(facCh)} <span style={{fontSize:10,color:C.muted}}>({(ch.pct*100).toFixed(0)}%)</span></td>
+                        <td style={{padding:"9px 12px",color:C.red}}>-{fmt(comision+tarjeta)}</td>
+                        <td style={{padding:"9px 12px",fontWeight:600}}>{fmt(margen)}</td>
+                        <td style={{padding:"9px 12px"}}>
+                          <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:`${rentC}22`,color:rentC,border:`1px solid ${rentC}44`,fontWeight:700}}>
+                            {rent.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
             <div style={{background:C.accentDim,borderRadius:10,padding:"14px 16px",border:`1px solid ${C.accent}44`}}>
               <div style={{fontWeight:700,color:C.accent,marginBottom:6,fontSize:12}}>Plan sueldo socios</div>
               <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>
@@ -1538,7 +1647,8 @@ function VistaMacro({onSwitch}){
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ═══ CONFIG ═══ */}
         {tab==="config"&&(
@@ -1551,6 +1661,26 @@ function VistaMacro({onSwitch}){
               <button onClick={()=>setEditGF(!editGF)} style={{padding:"7px 16px",fontSize:11,borderRadius:6,border:`1px solid ${editGF?C.accent:C.border}`,background:editGF?C.accentDim:C.card,color:editGF?C.accent:C.muted,cursor:"pointer",fontWeight:600}}>
                 {editGF?"✓ Guardar":"✏️ Editar"}
               </button>
+            </div>
+
+            {/* Slider % costo mercadería */}
+            <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600}}>% Costo de mercadería</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>Proveedores como porcentaje de la facturación proyectada</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:20,fontWeight:700,color:C.yellow}}>{(provPct*100).toFixed(0)}%</div>
+                  <div style={{fontSize:11,color:C.muted}}>{fmt(provMes)} / mes</div>
+                </div>
+              </div>
+              <input type="range" min="0.25" max="0.29" step="0.01" value={provPct}
+                onChange={e=>setProvPct(Number(e.target.value))}
+                style={{width:"100%",accentColor:C.yellow}}/>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.dim,marginTop:4}}>
+                <span>25%</span><span>27%</span><span>29%</span>
+              </div>
             </div>
             {editGF&&<div style={{background:C.yellowDim,border:`1px solid ${C.yellow}44`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:11,color:C.yellow}}>💡 Tocá el monto para actualizarlo. Afecta el resultado en tiempo real.</div>}
             <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${C.border}`,marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
