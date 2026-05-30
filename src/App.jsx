@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useState } from "react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const PASS = "Julia2420";
 const C = {
@@ -10,171 +10,241 @@ const C = {
   red:"#c05040",redDim:"#c0504018",
   yellow:"#c4900a",yellowDim:"#c4900a18",
   blue:"#4878a8",blueDim:"#4878a818",
-  purple:"#8866cc",purpleDim:"#8866cc18",
+  purple:"#8866cc",
 };
-const fmt  = n=>`$${Math.round(Math.abs(n)).toLocaleString("es-AR")}`;
+const fmt = n=>`$${Math.round(Math.abs(n)).toLocaleString("es-AR")}`;
 const fmtK = n=>Math.abs(n)>=1000000?`$${(Math.abs(n)/1000000).toFixed(2)}M`:`$${Math.round(Math.abs(n)/1000)}k`;
+const GF_BASE = 7272537;
+const FACT_BASE = 16271730;
 
-// ── DATA ──────────────────────────────────────────────────────────
+// ── VENTAS MAYO — días y colores correctos ───────────────────────
+const VENTAS_MAP = {2:751533,3:338557,5:504607,6:457196,7:494976,8:649637,9:967666,10:355069,12:644729,13:625126,14:427490,15:586474,16:796436,17:557893,19:504015,20:620345,21:161140};
+const DIAS_MAYO = Array.from({length:31},(_,i)=>i+1).map(d=>({
+  dia:d, v:VENTAS_MAP[d]||0, activo:!!VENTAS_MAP[d],
+  fs:[0,6].includes(new Date(2026,4,d).getDay())
+}));
+
+// ── RANKING — 50 productos ordenados por unidades ────────────────
+const RANKING = [
+  {n:"Latte",             u:249,cat:"Café",      rent:32.9,pv:5600, mp:888, accion:"potenciar"},
+  {n:"Flat White",        u:232,cat:"Café",      rent:27.9,pv:5800, mp:1214,accion:"subir",pvSug:6500},
+  {n:"Chipa",             u:187,cat:"Pastelería",rent:27.8,pv:4000, mp:839, accion:"potenciar"},
+  {n:"Cookie Frambuesa",  u:138,cat:"Pastelería",rent:33.5,pv:4100, mp:628, accion:"potenciar"},
+  {n:"Medialuna",         u:133,cat:"Pastelería",rent:14.2,pv:3800, mp:900, accion:"revisar"},
+  {n:"Cappu Doble",       u:106,cat:"Café",      rent:27.5,pv:6000, mp:1279,accion:"potenciar"},
+  {n:"Cappuccino",        u:69, cat:"Café",      rent:33.1,pv:5000, mp:785, accion:"potenciar"},
+  {n:"Cookie Chocolate",  u:89, cat:"Pastelería",rent:12.9,pv:5100, mp:1285,accion:"subir",pvSug:5600},
+  {n:"Espresso doble",    u:89, cat:"Café",      rent:28.8,pv:5000, mp:1002,accion:"potenciar"},
+  {n:"Cookie Pistacho",   u:78, cat:"Pastelería",rent:23.8,pv:4100, mp:1026,accion:"subir",pvSug:4600},
+  {n:"Chipa prensado",    u:92, cat:"Cocina",    rent:19.5,pv:8000, mp:1621,accion:"ok"},
+  {n:"Jugo de Naranja",   u:70, cat:"Café",      rent:30.0,pv:4300, mp:600, accion:"potenciar"},
+  {n:"Alfanuí",           u:54, cat:"Pastelería",rent:25.6,pv:5000, mp:1158,accion:"ok"},
+  {n:"Medialuna rellena", u:54, cat:"Cocina",    rent:19.8,pv:9500, mp:2530,accion:"ok"},
+  {n:"Americano",         u:60, cat:"Café",      rent:27.5,pv:5000, mp:1002,accion:"potenciar"},
+  {n:"Suaave",            u:53, cat:"Café",      rent:33.2,pv:6700, mp:1045,accion:"potenciar"},
+  {n:"Tostón de Palta",   u:50, cat:"Cocina",    rent:13.5,pv:10000,mp:2464,accion:"subir",pvSug:11500},
+  {n:"Tostado JyQ",       u:46, cat:"Cocina",    rent:13.4,pv:8500, mp:2094,accion:"subir",pvSug:10000},
+  {n:"Budín Limón",       u:44, cat:"Pastelería",rent:18.3,pv:4200, mp:833, accion:"ok"},
+  {n:"Cortado",           u:41, cat:"Café",      rent:33.0,pv:4600, mp:727, accion:"potenciar"},
+  {n:"Pomelada",          u:41, cat:"Café",      rent:30.0,pv:5000, mp:938, accion:"potenciar"},
+  {n:"Cappusotto",        u:35, cat:"Café",      rent:29.1,pv:6200, mp:1220,accion:"potenciar"},
+  {n:"Budín Banana",      u:36, cat:"Pastelería",rent:29.8,pv:4200, mp:797, accion:"ok"},
+  {n:"Alfajor Almendras", u:29, cat:"Pastelería",rent:35.7,pv:3800, mp:498, accion:"potenciar"},
+  {n:"Sandwich Mortadela",u:26, cat:"Cocina",    rent:22.9,pv:12500,mp:3042,accion:"potenciar"},
+  {n:"Choco Caliente",    u:32, cat:"Café",      rent:40.6,pv:6000, mp:489, accion:"potenciar"},
+  {n:"Alfajor Nevado",    u:25, cat:"Pastelería",rent:21.9,pv:5200, mp:1397,accion:"ok"},
+  {n:"Dame Números",      u:27, cat:"Café",      rent:27.2,pv:7000, mp:1514,accion:"ok"},
+  {n:"Tostado Capresse",  u:25, cat:"Cocina",    rent:17.4,pv:8500, mp:1759,accion:"subir",pvSug:10000},
+  {n:"Cheesecake",        u:33, cat:"Pastelería",rent:20.9,pv:8500, mp:2367,accion:"ok"},
+  {n:"Sniker",            u:22, cat:"Pastelería",rent:19.0,pv:5600, mp:1670,accion:"ok"},
+  {n:"Alfajor Tita",      u:22, cat:"Pastelería",rent:32.4,pv:3800, mp:623, accion:"potenciar"},
+  {n:"Brownie Noelito",   u:20, cat:"Pastelería",rent:22.0,pv:5600, mp:1670,accion:"ok"},
+  {n:"Mandarinada",       u:18, cat:"Café",      rent:30.8,pv:4700, mp:847, accion:"potenciar"},
+  {n:"Té Woolong",        u:18, cat:"Café",      rent:14.7,pv:4900, mp:1669,accion:"revisar"},
+  {n:"Cappu Marplatense", u:14, cat:"Café",      rent:29.1,pv:6200, mp:1220,accion:"potenciar"},
+  {n:"Trenzas",           u:16, cat:"Pastelería",rent:22.0,pv:5000, mp:1200,accion:"ok"},
+  {n:"Vasca de DDL",      u:10, cat:"Pastelería",rent:18.9,pv:8000, mp:2388,accion:"ok"},
+  {n:"Key Lime",          u:8,  cat:"Pastelería",rent:14.0,pv:7900, mp:2747,accion:"revisar"},
+  {n:"Tostón de Perso",   u:8,  cat:"Cocina",    rent:13.0,pv:9200, mp:1828,accion:"subir",pvSug:10500},
+  {n:"Espresso largo",    u:9,  cat:"Café",      rent:33.5,pv:3800, mp:582, accion:"potenciar"},
+  {n:"Pancakes",          u:7,  cat:"Cocina",    rent:18.0,pv:11000,mp:1800,accion:"ok"},
+  {n:"Americano Especiado",u:7, cat:"Café",      rent:27.5,pv:5000, mp:1002,accion:"ok"},
+  {n:"Espresso",          u:8,  cat:"Café",      rent:33.5,pv:3800, mp:582, accion:"potenciar"},
+  {n:"Filtrados",         u:6,  cat:"Café",      rent:24.6,pv:7500, mp:1816,accion:"ok"},
+  {n:"Tostadas",          u:6,  cat:"Cocina",    rent:16.0,pv:7500, mp:1080,accion:"subir",pvSug:8500},
+  {n:"Yogurt",            u:4,  cat:"Cocina",    rent:15.3,pv:9200, mp:2094,accion:"ok"},
+  {n:"Cookie Vegana",     u:3,  cat:"Pastelería",rent:22.0,pv:4100, mp:800, accion:"ok"},
+  {n:"Tostada saludable", u:3,  cat:"Cocina",    rent:12.0,pv:7500, mp:1200,accion:"revisar"},
+  {n:"Sandwich Bondio",   u:5,  cat:"Cocina",    rent:25.0,pv:19000,mp:8500,accion:"revisar"},
+];
+
+// ── RECETAS ──────────────────────────────────────────────────────
+const RECETAS = {
+  "Espresso":         [{ing:"Café",gr:21.5,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
+  "Espresso largo":   [{ing:"Café",gr:21.5,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
+  "Espresso doble":   [{ing:"Café",gr:43,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
+  "Cortado":          [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:110,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Cappuccino":       [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:154,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Flat White":       [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:165,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Cappu Doble":      [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Latte":            [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:220,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Americano":        [{ing:"Café",gr:43,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
+  "Americano Especiado":[{ing:"Café",gr:43,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
+  "Choco Caliente":   [{ing:"Chocolate amargo",gr:30,pu:26.3},{ing:"Leche entera",gr:154,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Dame Números":     [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"Chocolate amargo",gr:30,pu:26.3},{ing:"Azúcar común",gr:16,pu:1.96},{ing:"Vaso take away",gr:1,pu:350}],
+  "Cappusotto":       [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"Pasta de maní",gr:20,pu:8},{ing:"Choco blanco",gr:10,pu:26.5},{ing:"Vaso take away",gr:1,pu:350}],
+  "Cappu Marplatense":[{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"DDL Vacalin",gr:25,pu:4},{ing:"Pasta de maní",gr:15,pu:8},{ing:"Vaso take away",gr:1,pu:350}],
+  "Suaave":           [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:220,pu:1.2},{ing:"Azúcar común",gr:20,pu:1.96},{ing:"Vaso take away",gr:1,pu:350}],
+  "Pomelada":         [{ing:"Pomelo",gr:150,pu:3},{ing:"Miel",gr:10,pu:16},{ing:"Vaso take away",gr:1,pu:350}],
+  "Mandarinada":      [{ing:"Mandarina",gr:120,pu:2.5},{ing:"Limón",gr:30,pu:3.5},{ing:"Vaso take away",gr:1,pu:350}],
+  "Jugo de Naranja":  [{ing:"Naranja",gr:200,pu:2},{ing:"Vaso take away",gr:1,pu:350}],
+  "Filtrados":        [{ing:"Café",gr:64,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
+  "Té Woolong":       [{ing:"Té Woolong",gr:5,pu:100},{ing:"Vaso take away",gr:1,pu:350}],
+  "Cookie Chocolate": [{ing:"Chocolate amargo",gr:24,pu:26.3},{ing:"Manteca",gr:12,pu:13.3},{ing:"Cacao amargo",gr:5,pu:73.7},{ing:"Azúcar común",gr:16,pu:1.96},{ing:"Huevos",gr:0.21,pu:250},{ing:"Harina 0000",gr:11,pu:1.49}],
+  "Cookie Frambuesa": [{ing:"Harina 0000",gr:33,pu:1.49},{ing:"Manteca",gr:13,pu:13.3},{ing:"Azúcar común",gr:24,pu:1.96},{ing:"Huevos",gr:0.13,pu:250},{ing:"Frambuesas",gr:6,pu:22},{ing:"Choco blanco",gr:7,pu:26.5}],
+  "Cookie Pistacho":  [{ing:"Harina 0000",gr:31,pu:1.49},{ing:"Manteca",gr:13,pu:13.3},{ing:"Azúcar común",gr:25,pu:1.96},{ing:"Huevos",gr:0.13,pu:250},{ing:"Pistachos",gr:9,pu:75},{ing:"Naranja",gr:8,pu:2}],
+  "Alfajor Almendras":[{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.15,pu:250},{ing:"Harina 0000",gr:19,pu:1.49},{ing:"Almendras",gr:4,pu:19.2},{ing:"DDL Vacalin",gr:40,pu:4}],
+  "Alfajor Tita":     [{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.07,pu:250},{ing:"Harina 0000",gr:17,pu:1.49},{ing:"Chocolate amargo",gr:11,pu:26.3}],
+  "Alfanuí":          [{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.07,pu:250},{ing:"Harina 0000",gr:17,pu:1.49},{ing:"DDL Vacalin",gr:40,pu:4}],
+  "Alfajor Nevado":   [{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.07,pu:250},{ing:"Harina 0000",gr:17,pu:1.49},{ing:"Almendras",gr:1.5,pu:19.2},{ing:"Chocolate amargo",gr:11,pu:26.3}],
+  "Budín Limón":      [{ing:"Manteca",gr:28,pu:13.3},{ing:"Azúcar común",gr:38,pu:1.96},{ing:"Huevos",gr:0.5,pu:250},{ing:"Harina 0000",gr:42,pu:1.49},{ing:"Limón",gr:25,pu:3.5},{ing:"Semillas amapola",gr:1,pu:3.86}],
+  "Budín Banana":     [{ing:"Manteca",gr:28,pu:13.3},{ing:"Azúcar común",gr:38,pu:1.96},{ing:"Huevos",gr:0.5,pu:250},{ing:"Harina 0000",gr:42,pu:1.49},{ing:"Banana",gr:40,pu:4}],
+  "Chipa":            [{ing:"Fécula mandioca",gr:50,pu:1.8},{ing:"Queso Atuel",gr:25,pu:21.6},{ing:"Huevos",gr:0.08,pu:250},{ing:"Manteca",gr:5,pu:13.3},{ing:"Sal",gr:0.5,pu:3.7}],
+  "Tostón de Palta":  [{ing:"Pan masa madre",gr:1,pu:3400},{ing:"Queso crema",gr:40,pu:5.7},{ing:"Palta",gr:80,pu:8000},{ing:"Tomate cherry",gr:30,pu:8000},{ing:"Aceite de oliva",gr:10,pu:16}],
+  "Tostón de Perso":  [{ing:"Pan masa madre",gr:1,pu:3400},{ing:"Queso crema",gr:40,pu:5.7},{ing:"Tomate cherry",gr:40,pu:8000}],
+  "Tostado JyQ":      [{ing:"Pan molde",gr:2,pu:3400},{ing:"Lomito ahumado",gr:60,pu:18.2},{ing:"Queso Gouda",gr:40,pu:19.6}],
+  "Tostado Capresse": [{ing:"Pan molde",gr:2,pu:3400},{ing:"Tomate perita",gr:60,pu:4},{ing:"Queso Reggianito",gr:40,pu:14.7}],
+  "Tostadas":         [{ing:"Pan molde",gr:2,pu:3400},{ing:"Queso Gouda",gr:30,pu:19.6}],
+  "Sandwich Mortadela":[{ing:"Pan masa madre",gr:1,pu:3400},{ing:"Mortadela pistachos",gr:80,pu:18.2},{ing:"Queso Gouda",gr:40,pu:19.6},{ing:"Tomate perita",gr:40,pu:4},{ing:"Pesto",gr:20,pu:10.1}],
+  "Chipa prensado":   [{ing:"Fécula mandioca",gr:67,pu:1.8},{ing:"Queso Atuel",gr:33,pu:21.6},{ing:"Lomito ahumado",gr:40,pu:18.2}],
+  "Medialuna rellena":[{ing:"Medialuna",gr:1,pu:1900},{ing:"Queso Gouda",gr:30,pu:19.6},{ing:"Lomito ahumado",gr:40,pu:18.2}],
+  "Yogurt":           [{ing:"Yogurt griego",gr:180,pu:3},{ing:"Miel",gr:15,pu:16}],
+};
+
+// ── GASTOS FIJOS ─────────────────────────────────────────────────
 const GF_INIT = [
-  {id:1, concepto:"Sueldos emp. blanco",   monto:1718776,cat:"Personal",   icon:"👥"},
-  {id:2, concepto:"Sueldos emp. negro",    monto:1088000,cat:"Personal",   icon:"👥"},
-  {id:3, concepto:"Cargas sociales",        monto:1246698,cat:"Personal",   icon:"📋"},
-  {id:4, concepto:"Aguinaldo (ahorro)",     monto:350000, cat:"Personal",   icon:"💰"},
-  {id:5, concepto:"Sindicatos",             monto:279692, cat:"Personal",   icon:"🤝"},
-  {id:6, concepto:"Autónomos",              monto:62743,  cat:"Personal",   icon:"📄"},
-  {id:7, concepto:"Alquiler",               monto:500000, cat:"Estructura", icon:"🏠"},
-  {id:8, concepto:"Muni vía pública",       monto:242264, cat:"Estructura", icon:"🏛️"},
-  {id:9, concepto:"Habilitación Deck",      monto:242000, cat:"Estructura", icon:"🏗️"},
-  {id:10,concepto:"Municipal / DDJJ",       monto:90355,  cat:"Estructura", icon:"📑"},
-  {id:11,concepto:"Expensas",               monto:36172,  cat:"Estructura", icon:"🏢"},
-  {id:12,concepto:"Seguro",                 monto:61171,  cat:"Estructura", icon:"🛡️"},
-  {id:13,concepto:"Luz",                    monto:417668, cat:"Servicios",  icon:"💡"},
-  {id:14,concepto:"Internet + software",    monto:126414, cat:"Servicios",  icon:"🌐"},
-  {id:15,concepto:"Desinfección",           monto:45000,  cat:"Servicios",  icon:"🧹"},
-  {id:16,concepto:"TSG / Seg. e Higiene",   monto:142000, cat:"Servicios",  icon:"⚠️"},
-  {id:17,concepto:"Fotos Sofi",             monto:70000,  cat:"Servicios",  icon:"📸"},
-  {id:18,concepto:"Contador",               monto:220000, cat:"Admin",      icon:"📊"},
-  {id:19,concepto:"Fudo (sistema)",         monto:73150,  cat:"Admin",      icon:"💻"},
-  {id:20,concepto:"Tarjeta / Payway",       monto:433155, cat:"Admin",      icon:"💳"},
-  {id:21,concepto:"Cuota financiación",     monto:284693, cat:"Admin",      icon:"📅"},
-  {id:22,concepto:"IIBB",                   monto:170000, cat:"Impuestos",  icon:"🧾"},
-  {id:23,concepto:"IVA (promedio mensual)", monto:370000, cat:"Impuestos",  icon:"📝"},
+  {id:1, concepto:"Sueldos emp. blanco",  monto:1718776,cat:"Personal",  icon:"👥"},
+  {id:2, concepto:"Sueldos emp. negro",   monto:1088000,cat:"Personal",  icon:"👥"},
+  {id:3, concepto:"Cargas sociales",       monto:1246698,cat:"Personal",  icon:"📋"},
+  {id:4, concepto:"Aguinaldo (ahorro)",    monto:350000, cat:"Personal",  icon:"💰"},
+  {id:5, concepto:"Sindicatos",            monto:279692, cat:"Personal",  icon:"🤝"},
+  {id:6, concepto:"Autónomos",             monto:62743,  cat:"Personal",  icon:"📄"},
+  {id:7, concepto:"Alquiler",              monto:500000, cat:"Estructura",icon:"🏠"},
+  {id:8, concepto:"Muni vía pública",      monto:242264, cat:"Estructura",icon:"🏛️"},
+  {id:9, concepto:"Habilitación Deck",     monto:242000, cat:"Estructura",icon:"🏗️"},
+  {id:10,concepto:"Municipal / DDJJ",      monto:90355,  cat:"Estructura",icon:"📑"},
+  {id:11,concepto:"Expensas",              monto:36172,  cat:"Estructura",icon:"🏢"},
+  {id:12,concepto:"Seguro",                monto:61171,  cat:"Estructura",icon:"🛡️"},
+  {id:13,concepto:"Luz",                   monto:417668, cat:"Servicios", icon:"💡"},
+  {id:14,concepto:"Internet + software",   monto:126414, cat:"Servicios", icon:"🌐"},
+  {id:15,concepto:"Desinfección",          monto:45000,  cat:"Servicios", icon:"🧹"},
+  {id:16,concepto:"TSG / Seg. e Higiene",  monto:142000, cat:"Servicios", icon:"⚠️"},
+  {id:17,concepto:"Fotos Sofi",            monto:70000,  cat:"Servicios", icon:"📸"},
+  {id:18,concepto:"Contador",              monto:220000, cat:"Admin",     icon:"📊"},
+  {id:19,concepto:"Fudo (sistema)",        monto:73150,  cat:"Admin",     icon:"💻"},
+  {id:20,concepto:"Tarjeta / Payway",      monto:433155, cat:"Admin",     icon:"💳"},
+  {id:21,concepto:"Cuota financiación",    monto:284693, cat:"Admin",     icon:"📅"},
+  {id:22,concepto:"IIBB",                  monto:170000, cat:"Impuestos", icon:"🧾"},
+  {id:23,concepto:"IVA (promedio mensual)",monto:370000, cat:"Impuestos", icon:"📝"},
 ];
 
+// ── STOCK ────────────────────────────────────────────────────────
 const STOCK_INIT = [
-  {item:"Café (granos)",     u:"kg", stock:8,   min:5,  max:15,  cd:1.19,icon:"☕",cat:"Café"},
-  {item:"Leche entera",      u:"L",  stock:17,  min:20, max:60,  cd:6.87,icon:"🥛",cat:"Lácteos",warn:"Pedir 22L/entrega — dura 2.5d"},
-  {item:"Crema Milkaut",     u:"u",  stock:4,   min:2,  max:8,   cd:0.2, icon:"🥛",cat:"Lácteos"},
-  {item:"Leche condensada",  u:"u",  stock:8,   min:4,  max:16,  cd:0.4, icon:"🥛",cat:"Lácteos"},
-  {item:"Queso crema",       u:"kg", stock:3,   min:1,  max:4,   cd:0.10,icon:"🧀",cat:"Lácteos"},
-  {item:"Yogurisimo",        u:"u",  stock:4,   min:2,  max:8,   cd:0.18,icon:"🥛",cat:"Lácteos"},
-  {item:"Manteca 25kg",      u:"kg", stock:20,  min:5,  max:25,  cd:0.32,icon:"🧈",cat:"Insumos"},
-  {item:"Harina 0000",       u:"kg", stock:18,  min:5,  max:25,  cd:0.45,icon:"🌾",cat:"Insumos"},
-  {item:"Harina 000",        u:"kg", stock:5,   min:2,  max:10,  cd:0.10,icon:"🌾",cat:"Insumos"},
-  {item:"Azúcar común",      u:"kg", stock:12,  min:5,  max:20,  cd:0.38,icon:"🍬",cat:"Insumos"},
-  {item:"Azúcar impalpable", u:"kg", stock:5,   min:2,  max:10,  cd:0.15,icon:"🍬",cat:"Insumos"},
-  {item:"Fécula mandioca",   u:"kg", stock:15,  min:5,  max:25,  cd:0.61,icon:"🌿",cat:"Insumos"},
-  {item:"Cacao amargo",      u:"kg", stock:0.8, min:0.5,max:2,   cd:0.04,icon:"🍫",cat:"Insumos"},
-  {item:"Chocolate amargo",  u:"kg", stock:3,   min:2,  max:6,   cd:0.15,icon:"🍫",cat:"Insumos"},
-  {item:"Chocolate blanco",  u:"kg", stock:2,   min:1,  max:4,   cd:0.09,icon:"🍫",cat:"Insumos"},
-  {item:"Polvo hornear",     u:"kg", stock:2,   min:1,  max:3,   cd:0.05,icon:"🧂",cat:"Insumos"},
-  {item:"Bicarbonato",       u:"gr", stock:400, min:200,max:800, cd:10,  icon:"🧂",cat:"Insumos"},
-  {item:"Aceite girasol",    u:"L",  stock:3,   min:1,  max:5,   cd:0.08,icon:"🫙",cat:"Insumos"},
-  {item:"Sal",               u:"kg", stock:1,   min:0.5,max:2,   cd:0.02,icon:"🧂",cat:"Insumos"},
-  {item:"Esencia vainilla",  u:"ml", stock:500, min:200,max:1000,cd:8,   icon:"🫙",cat:"Insumos"},
-  {item:"Levadura seca",     u:"gr", stock:200, min:100,max:500, cd:5,   icon:"🧫",cat:"Insumos"},
-  {item:"DDL Vacalin",       u:"kg", stock:6,   min:3,  max:10,  cd:0.14,icon:"🍯",cat:"Insumos"},
-  {item:"Pasta de maní",     u:"kg", stock:2,   min:1,  max:3,   cd:0.05,icon:"🥜",cat:"Insumos"},
-  {item:"Huevos",            u:"u",  stock:30,  min:20, max:60,  cd:3.4, icon:"🥚",cat:"Insumos"},
-  {item:"Almendras",         u:"kg", stock:4,   min:2,  max:10,  cd:0.08,icon:"🌰",cat:"Insumos"},
-  {item:"Pistachos",         u:"kg", stock:2,   min:1,  max:6,   cd:0.03,icon:"🌰",cat:"Insumos"},
-  {item:"Nueces",            u:"kg", stock:1,   min:0.5,max:2,   cd:0.02,icon:"🌰",cat:"Insumos"},
-  {item:"Frambuesas",        u:"kg", stock:1.5, min:1,  max:3,   cd:0.03,icon:"🫐",cat:"Insumos"},
-  {item:"Arándanos",         u:"kg", stock:1,   min:0.5,max:2,   cd:0.02,icon:"🫐",cat:"Insumos"},
-  {item:"Medialunas",        u:"u",  stock:90,  min:50, max:180, cd:22,  icon:"🥐",cat:"Panificados"},
-  {item:"Pan masa madre",    u:"u",  stock:4,   min:3,  max:8,   cd:0.95,icon:"🍞",cat:"Panificados"},
-  {item:"Pan molde",         u:"u",  stock:2,   min:2,  max:4,   cd:0.55,icon:"🍞",cat:"Panificados"},
-  {item:"Naranja",           u:"kg", stock:5,   min:3,  max:8,   cd:0.50,icon:"🍊",cat:"Verdulería"},
-  {item:"Limón",             u:"kg", stock:2,   min:1,  max:4,   cd:0.20,icon:"🍋",cat:"Verdulería"},
-  {item:"Pomelo",            u:"kg", stock:2,   min:1,  max:4,   cd:0.20,icon:"🍋",cat:"Verdulería"},
-  {item:"Mandarina",         u:"kg", stock:3,   min:1,  max:5,   cd:0.20,icon:"🍊",cat:"Verdulería"},
-  {item:"Banana",            u:"kg", stock:1,   min:0.5,max:2,   cd:0.15,icon:"🍌",cat:"Verdulería"},
-  {item:"Cherry",            u:"kg", stock:0.5, min:0.3,max:1,   cd:0.08,icon:"🍒",cat:"Verdulería"},
-  {item:"Palta",             u:"kg", stock:1.5, min:1,  max:3,   cd:0.18,icon:"🥑",cat:"Verdulería"},
-  {item:"Tomate cherry",     u:"kg", stock:0.5, min:0.3,max:1,   cd:0.08,icon:"🍅",cat:"Verdulería"},
-  {item:"Miel",              u:"gr", stock:400, min:200,max:800, cd:12,  icon:"🍯",cat:"Verdulería"},
-  {item:"Albahaca",          u:"ramo",stock:2,  min:1,  max:4,   cd:0.20,icon:"🌿",cat:"Verdulería"},
-  {item:"Pesto Divina Oliva",u:"gr", stock:400, min:200,max:634, cd:4,   icon:"🫙",cat:"Varios"},
-  {item:"Aceite de oliva",   u:"ml", stock:500, min:200,max:1000,cd:10,  icon:"🫙",cat:"Varios"},
-  {item:"Queso Gouda",       u:"kg", stock:2,   min:1,  max:4,   cd:0.12,icon:"🧀",cat:"Fiambres"},
-  {item:"Queso Dambo",       u:"kg", stock:1.5, min:1,  max:3,   cd:0.10,icon:"🧀",cat:"Fiambres"},
-  {item:"Queso Reggianito",  u:"kg", stock:1,   min:0.5,max:2,   cd:0.05,icon:"🧀",cat:"Fiambres"},
-  {item:"Lomito ahumado",    u:"kg", stock:1,   min:0.5,max:2,   cd:0.10,icon:"🥩",cat:"Fiambres"},
-  {item:"Mortadela pistacho",u:"kg", stock:0.5, min:0.3,max:1,   cd:0.08,icon:"🥩",cat:"Fiambres"},
-  {item:"Vasos take away",   u:"u",  stock:120, min:50, max:200, cd:25,  icon:"🥤",cat:"Descartables"},
-  {item:"Cajas delivery",    u:"u",  stock:30,  min:10, max:50,  cd:2,   icon:"📦",cat:"Descartables"},
-  {item:"Bolsas consorcio",  u:"u",  stock:20,  min:10, max:30,  cd:1,   icon:"🛍️",cat:"Descartables"},
-  {item:"Rollo aluminio",    u:"u",  stock:1,   min:1,  max:2,   cd:0.05,icon:"📦",cat:"Descartables"},
-];
-
-// Ventas diarias mayo — todos los días del mes con 0 si no operó
-const DIAS_MAYO = Array.from({length:31},(_,i)=>i+1).map(d=>{
-  const mapa = {
-    1:751400,2:338500,5:504500,6:457100,7:494900,8:649500,
-    9:967500,10:355000,12:644600,13:625000,14:427400,15:586350,
-    16:796300,17:557800,19:503900,20:620200,21:161100
-  };
-  return {dia:d, v:mapa[d]||0, activo:!!mapa[d]};
-});
-
-const VENTAS = DIAS_MAYO.filter(d=>d.activo).map(d=>({f:`${d.dia}/05`,v:d.v}));
-
-// Productos — 30 más vendidos ordenados
-const TOP_PRODS = [
-  // CAFÉ — ordenados por unidades
-  {nombre:"Latte",                u:282,cat:"Café",      rent:32.9,pv:5600, ct:3755,mp:888, gfu:2503,accion:"potenciar"},
-  {nombre:"Flat White",           u:248,cat:"Café",      rent:27.9,pv:5800, ct:4184,mp:1214,gfu:2592,accion:"subir",pvSug:6500},
-  {nombre:"Espresso doble",       u:89, cat:"Café",      rent:28.8,pv:5000, ct:3562,mp:1002,gfu:2235,accion:"potenciar"},
-  {nombre:"Cappu Doble",          u:106,cat:"Café",      rent:27.5,pv:6000, ct:4351,mp:1279,gfu:2682,accion:"potenciar"},
-  {nombre:"Cortado",              u:74, cat:"Café",      rent:33.0,pv:4600, ct:3082,mp:727, gfu:2056,accion:"potenciar"},
-  {nombre:"Cappuccino",           u:56, cat:"Café",      rent:33.1,pv:5000, ct:3345,mp:785, gfu:2235,accion:"potenciar"},
-  {nombre:"Suaave",               u:53, cat:"Café",      rent:33.2,pv:6700, ct:4476,mp:1045,gfu:2995,accion:"potenciar"},
-  {nombre:"Americano",            u:52, cat:"Café",      rent:27.5,pv:5000, ct:3624,mp:1002,gfu:2235,accion:"potenciar"},
-  {nombre:"Pomelada",             u:49, cat:"Café",      rent:30.0,pv:5000, ct:3498,mp:938, gfu:2235,accion:"potenciar"},
-  {nombre:"Cappusotto",           u:35, cat:"Café",      rent:29.1,pv:6200, ct:4395,mp:1220,gfu:2771,accion:"potenciar"},
-  {nombre:"Mandarinada",          u:31, cat:"Café",      rent:30.8,pv:4700, ct:3254,mp:847, gfu:2101,accion:"potenciar"},
-  {nombre:"Dame Números",         u:27, cat:"Café",      rent:27.2,pv:7000, ct:5098,mp:1514,gfu:3129,accion:"ok"},
-  {nombre:"Espresso",             u:22, cat:"Café",      rent:33.5,pv:3800, ct:2528,mp:582, gfu:1698,accion:"potenciar"},
-  {nombre:"Choco Caliente",       u:16, cat:"Café",      rent:40.6,pv:6000, ct:3561,mp:489, gfu:2682,accion:"potenciar"},
-  {nombre:"Jugo de Naranja",      u:35, cat:"Café",      rent:30.0,pv:4300, ct:3013,mp:600, gfu:1922,accion:"potenciar"},
-  {nombre:"Té Woolong",           u:18, cat:"Café",      rent:14.7,pv:4900, ct:4178,mp:1669,gfu:2190,accion:"revisar"},
-  {nombre:"Filtrados",            u:6,  cat:"Café",      rent:24.6,pv:7500, ct:5656,mp:1816,gfu:3352,accion:"ok"},
-  {nombre:"Espresso largo",       u:9,  cat:"Café",      rent:33.5,pv:3800, ct:2528,mp:582, gfu:1698,accion:"potenciar"},
-  {nombre:"Americano Especiado",  u:7,  cat:"Café",      rent:27.5,pv:5000, ct:3624,mp:1002,gfu:2235,accion:"ok"},
-  {nombre:"Cappu Marplatense",    u:14, cat:"Café",      rent:29.1,pv:6200, ct:4395,mp:1220,gfu:2771,accion:"potenciar"},
-  // PASTELERÍA — ordenados por unidades
-  {nombre:"Chipa",                u:208,cat:"Pastelería",rent:27.8,pv:4000, ct:2887,mp:839, gfu:1788,accion:"potenciar"},
-  {nombre:"Cookie Frambuesa",     u:156,cat:"Pastelería",rent:33.5,pv:4100, ct:2727,mp:628, gfu:1832,accion:"potenciar"},
-  {nombre:"Medialunas",           u:117,cat:"Pastelería",rent:18.2,pv:3800, ct:3108,mp:900, gfu:1698,accion:"revisar"},
-  {nombre:"Cookie Pistacho",      u:104,cat:"Pastelería",rent:23.8,pv:4100, ct:3125,mp:1026,gfu:1832,accion:"subir",pvSug:4600},
-  {nombre:"Cookie Chocolate",     u:88, cat:"Pastelería",rent:23.6,pv:5100, ct:3896,mp:1285,gfu:2279,accion:"subir",pvSug:5600},
-  {nombre:"Alfanuí",              u:56, cat:"Pastelería",rent:25.6,pv:5000, ct:3718,mp:1158,gfu:2235,accion:"ok"},
-  {nombre:"Budín Limón",          u:44, cat:"Pastelería",rent:29.0,pv:4200, ct:2984,mp:833, gfu:1877,accion:"ok"},
-  {nombre:"Budín Banana",         u:27, cat:"Pastelería",rent:29.8,pv:4200, ct:2948,mp:797, gfu:1877,accion:"ok"},
-  {nombre:"Alfajor Almendras",    u:29, cat:"Pastelería",rent:35.7,pv:3800, ct:2444,mp:498, gfu:1698,accion:"potenciar"},
-  {nombre:"Alfajor Nevado",       u:14, cat:"Pastelería",rent:21.9,pv:5200, ct:4060,mp:1397,gfu:2324,accion:"ok"},
-  {nombre:"Alfajor Tita",         u:25, cat:"Pastelería",rent:32.4,pv:3800, ct:2569,mp:623, gfu:1698,accion:"potenciar"},
-  {nombre:"Cookie Vegana",        u:5,  cat:"Pastelería",rent:22.0,pv:4100, ct:3198,mp:800, gfu:1832,accion:"ok"},
-  {nombre:"Cheesecake",           u:33, cat:"Pastelería esp.",rent:20.9,pv:8500,ct:6719,mp:2367,gfu:3799,accion:"ok"},
-  {nombre:"Vasca de DDL",         u:27, cat:"Pastelería esp.",rent:18.9,pv:8000,ct:6484,mp:2388,gfu:3576,accion:"ok"},
-  {nombre:"Key Lime",             u:16, cat:"Pastelería esp.",rent:14.0,pv:7900,ct:6792,mp:2747,gfu:3531,accion:"revisar"},
-  {nombre:"Sniker",               u:22, cat:"Pastelería esp.",rent:19.0,pv:5600,ct:4537,mp:1670,gfu:2503,accion:"ok"},
-  {nombre:"Rol de Canela",        u:12, cat:"Pastelería esp.",rent:40.9,pv:3500,ct:2067,mp:275, gfu:1564,accion:"potenciar"},
-  {nombre:"Pancakes",             u:8,  cat:"Pastelería",rent:18.0,pv:11000,ct:9020,mp:1800,gfu:4920,accion:"ok"},
-  // COCINA — ordenados por unidades
-  {nombre:"Medialuna rellena LyQ",u:27, cat:"Cocina",    rent:22.7,pv:9500, ct:7343,mp:2543,gfu:4248,accion:"ok"},
-  {nombre:"Medialuna Capresse",   u:27, cat:"Cocina",    rent:21.1,pv:9500, ct:7496,mp:2518,gfu:4248,accion:"ok"},
-  {nombre:"Chipa prensado LyQ",   u:47, cat:"Cocina",    rent:20.8,pv:8000, ct:6340,mp:1621,gfu:3578,accion:"ok"},
-  {nombre:"Chipa prensado Cap.",  u:47, cat:"Cocina",    rent:20.5,pv:8000, ct:6362,mp:1643,gfu:3578,accion:"ok"},
-  {nombre:"Tostón de Palta",      u:48, cat:"Cocina",    rent:13.5,pv:10000,ct:8657,mp:2464,gfu:4472,accion:"subir",pvSug:11500},
-  {nombre:"Tostado JyQ",          u:42, cat:"Cocina",    rent:13.4,pv:8500, ct:7358,mp:2094,gfu:3801,accion:"subir",pvSug:10000},
-  {nombre:"Tostado Capresse",     u:20, cat:"Cocina",    rent:17.4,pv:8500, ct:7024,mp:1759,gfu:3801,accion:"subir",pvSug:10000},
-  {nombre:"Sandwich Mortadela",   u:21, cat:"Cocina",    rent:22.9,pv:12500,ct:9636,mp:3042,gfu:5590,accion:"potenciar"},
-  {nombre:"Tostadas",             u:12, cat:"Cocina",    rent:16.0,pv:7500, ct:6307,mp:1080,gfu:3354,accion:"subir",pvSug:8500},
-  {nombre:"Tostón de Perso",      u:8,  cat:"Cocina",    rent:13.0,pv:9200, ct:8004,mp:1828,gfu:4115,accion:"subir",pvSug:10500},
-  {nombre:"Yogurt",               u:9,  cat:"Cocina",    rent:15.3,pv:9200, ct:7792,mp:2094,gfu:4115,accion:"ok"},
-];
-
-const COMBOS = [
-  {nombre:"Latte + Cookie",         tipo:"Desayuno",pv:8000, pvSug:8500, ct:6679,rent:16.5,u:45,accion:"subir",  nota:"Subir a $8.500 — margen pasa de 16.5% a 21.2%. El cliente no lo va a notar."},
-  {nombre:"Latte + Tostadas",       tipo:"Desayuno",pv:9900, pvSug:11500,ct:9237,rent:6.7, u:12,accion:"revisar",nota:"Margen crítico (6.7%). Subir a $11.500 urgente — rent. pasa a 19.7%."},
-  {nombre:"Latte + Tostado",        tipo:"Desayuno",pv:12300,pvSug:13500,ct:10870,rent:11.6,u:18,accion:"subir", nota:"Subir a $13.500 — rent. pasa de 11.6% a 19.5%. Muy vendido, aguanta la suba."},
-  {nombre:"Latte + Chipa",          tipo:"Desayuno",pv:8000, pvSug:8500, ct:6829,rent:14.6,u:55,accion:"subir",  nota:"El más vendido. Subir $500 sin riesgo — rent. pasa a 19.7%."},
-  {nombre:"Latte + Alfajor Alm.",   tipo:"Desayuno",pv:8000, pvSug:8000, ct:6363,rent:20.5,u:22,accion:"ok",    nota:"Mejor margen del desayuno (20.5%). Mantener y empujar en venta sugestiva."},
-  {nombre:"S. Mortadela + Bebida",  tipo:"Almuerzo",pv:16500,pvSug:16500,ct:12714,rent:22.9,u:15,accion:"ok",  nota:"Buen margen. Potenciar — es el combo de almuerzo más rentable."},
-  {nombre:"S. Bondio + Bebida",     tipo:"Almuerzo",pv:19000,pvSug:null, ct:13129,rent:30.9,u:8,accion:"revisar",nota:"Bondio sale pronto de carta. No invertir en comunicar — planificar reemplazo."},
-  {nombre:"S. Veggie + Bebida",     tipo:"Almuerzo",pv:16500,pvSug:null, ct:12429,rent:24.7,u:6, accion:"revisar",nota:"Veggie sale pronto de carta. Planificar combo de reemplazo con nuevo sándwich."},
+  {item:"Café tolva",         u:"kg", stock:8,   min:3,  max:15,  cd:1.19,icon:"☕",cat:"Café",       prov:"Ponte"},
+  {item:"Café 1/4 kg",        u:"u",  stock:3,   min:3,  max:10,  cd:0.2, icon:"☕",cat:"Café",       prov:"Ponte"},
+  {item:"Leche entera",       u:"u",  stock:8,   min:10, max:34,  cd:6.87,icon:"🥛",cat:"Lácteos",    prov:"Serenísima",warn:"Pedir 17L/entrega — dura 2.5d"},
+  {item:"Leche descremada",   u:"u",  stock:2,   min:1,  max:6,   cd:0.2, icon:"🥛",cat:"Lácteos",    prov:"Serenísima"},
+  {item:"Leche deslactosada", u:"u",  stock:1,   min:1,  max:4,   cd:0.1, icon:"🥛",cat:"Lácteos",    prov:"Serenísima"},
+  {item:"Yogurt griego",      u:"u",  stock:4,   min:2,  max:8,   cd:0.18,icon:"🥛",cat:"Lácteos",    prov:"Serenísima"},
+  {item:"Azúcar común",       u:"kg", stock:2,   min:5,  max:20,  cd:0.38,icon:"🍬",cat:"Alyser",     prov:"Alyser"},
+  {item:"Azúcar rubia",       u:"kg", stock:10,  min:3,  max:15,  cd:0.15,icon:"🍬",cat:"Alyser",     prov:"Alyser"},
+  {item:"Azúcar impalpable",  u:"kg", stock:2,   min:3,  max:10,  cd:0.15,icon:"🍬",cat:"Alyser",     prov:"Alyser"},
+  {item:"Cacao amargo",       u:"kg", stock:0.5, min:1,  max:3,   cd:0.04,icon:"🍫",cat:"Alyser",     prov:"Alyser"},
+  {item:"Chocolate amargo",   u:"kg", stock:5,   min:5,  max:10,  cd:0.15,icon:"🍫",cat:"Alyser",     prov:"Alyser"},
+  {item:"Harina 0000",        u:"kg", stock:5,   min:10, max:25,  cd:0.45,icon:"🌾",cat:"Alyser",     prov:"Alyser"},
+  {item:"Bicarbonato",        u:"gr", stock:2000,min:500,max:3000,cd:10,  icon:"🧂",cat:"Alyser",     prov:"Alyser"},
+  {item:"Fécula de maíz",     u:"kg", stock:2,   min:1,  max:4,   cd:0.05,icon:"🌿",cat:"Alyser",     prov:"Alyser"},
+  {item:"Polvo hornear",      u:"kg", stock:1,   min:1,  max:3,   cd:0.05,icon:"🧂",cat:"Alyser",     prov:"Alyser"},
+  {item:"Crema Milkaut",      u:"u",  stock:2,   min:3,  max:8,   cd:0.2, icon:"🥛",cat:"Alyser",     prov:"Alyser"},
+  {item:"Cremato",            u:"kg", stock:0,   min:3,  max:7,   cd:0.08,icon:"🥛",cat:"Alyser",     prov:"Alyser"},
+  {item:"Semillas amapola",   u:"gr", stock:700, min:800,max:2000,cd:5,   icon:"🌱",cat:"Alyser",     prov:"Alyser"},
+  {item:"Esencia vainilla",   u:"kg", stock:2,   min:3,  max:5,   cd:0.02,icon:"🫙",cat:"Alyser",     prov:"Alyser"},
+  {item:"Aceite girasol",     u:"L",  stock:1,   min:1,  max:5,   cd:0.08,icon:"🫙",cat:"Alyser",     prov:"Alyser"},
+  {item:"Sal",                u:"gr", stock:500, min:500,max:2000,cd:10,  icon:"🧂",cat:"Alyser",     prov:"Alyser"},
+  {item:"Manteca",            u:"kg", stock:4,   min:4,  max:25,  cd:0.32,icon:"🧈",cat:"Alyser",     prov:"Alyser"},
+  {item:"Avena",              u:"kg", stock:0,   min:1.5,max:4,   cd:0.05,icon:"🌾",cat:"Alyser",     prov:"Alyser"},
+  {item:"Chocolate blanco",   u:"kg", stock:0.5, min:7,  max:10,  cd:0.09,icon:"🍫",cat:"Alyser",     prov:"Alyser"},
+  {item:"Fécula mandioca",    u:"kg", stock:5,   min:5,  max:25,  cd:0.61,icon:"🌿",cat:"Alyser",     prov:"Alyser"},
+  {item:"Pasas de uva",       u:"kg", stock:0.5, min:1.5,max:3,   cd:0.02,icon:"🍇",cat:"Alyser",     prov:"Alyser"},
+  {item:"Harina 000",         u:"kg", stock:5,   min:5,  max:15,  cd:0.1, icon:"🌾",cat:"Alyser",     prov:"Alyser"},
+  {item:"Levadura seca",      u:"gr", stock:100, min:100,max:500, cd:5,   icon:"🧫",cat:"Alyser",     prov:"Alyser"},
+  {item:"Maní",               u:"kg", stock:10,  min:1,  max:10,  cd:0.05,icon:"🥜",cat:"Alyser",     prov:"Alyser"},
+  {item:"Leche condensada",   u:"u",  stock:0,   min:2,  max:8,   cd:0.2, icon:"🥛",cat:"Alyser",     prov:"Alyser"},
+  {item:"Galletas Lincoln",   u:"u",  stock:0,   min:6,  max:20,  cd:0.1, icon:"🍪",cat:"Alyser",     prov:"Alyser"},
+  {item:"Azúcar mascabo",     u:"kg", stock:1,   min:1,  max:3,   cd:0.02,icon:"🍬",cat:"Alyser",     prov:"Alyser"},
+  {item:"Lino",               u:"kg", stock:1,   min:1,  max:3,   cd:0.01,icon:"🌱",cat:"Alyser",     prov:"Alyser"},
+  {item:"Queso crema",        u:"kg", stock:1,   min:1,  max:4,   cd:0.10,icon:"🧀",cat:"Alyser",     prov:"Alyser"},
+  {item:"Aceto",              u:"ml", stock:500, min:250,max:1000,cd:5,   icon:"🫙",cat:"Alyser",     prov:"Alyser"},
+  {item:"Avellanas",          u:"kg", stock:1,   min:1,  max:3,   cd:0.02,icon:"🌰",cat:"Alyser",     prov:"Alyser"},
+  {item:"Mascarpone",         u:"gr", stock:250, min:250,max:1000,cd:5,   icon:"🧀",cat:"Alyser",     prov:"Alyser"},
+  {item:"Queso Atuel",        u:"kg", stock:1,   min:1,  max:3,   cd:0.08,icon:"🧀",cat:"Alyser",     prov:"Alyser"},
+  {item:"Choco baño",         u:"kg", stock:5,   min:2,  max:8,   cd:0.05,icon:"🍫",cat:"Alyser",     prov:"Alyser"},
+  {item:"Harina sin TACC",    u:"kg", stock:1,   min:2,  max:5,   cd:0.03,icon:"🌾",cat:"Alyser",     prov:"Alyser"},
+  {item:"Almendras",          u:"kg", stock:4,   min:2,  max:10,  cd:0.08,icon:"🌰",cat:"Quintal",    prov:"Quintal"},
+  {item:"Pistachos",          u:"kg", stock:2,   min:1,  max:6,   cd:0.03,icon:"🌰",cat:"Quintal",    prov:"Quintal"},
+  {item:"Dátiles",            u:"kg", stock:1,   min:1,  max:5,   cd:0.02,icon:"🌴",cat:"Quintal",    prov:"Quintal"},
+  {item:"Pasta de maní",      u:"kg", stock:2,   min:1,  max:3,   cd:0.05,icon:"🥜",cat:"Quintal",    prov:"Quintal"},
+  {item:"Nueces",             u:"kg", stock:1,   min:0.5,max:2,   cd:0.02,icon:"🌰",cat:"Quintal",    prov:"Quintal"},
+  {item:"Huevos",             u:"u",  stock:30,  min:30, max:60,  cd:3.4, icon:"🥚",cat:"Verdulería", prov:"Huevero"},
+  {item:"Naranja",            u:"kg", stock:4,   min:4,  max:8,   cd:0.5, icon:"🍊",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Pomelo",             u:"kg", stock:2,   min:2,  max:5,   cd:0.2, icon:"🍋",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Mandarina",          u:"kg", stock:2,   min:2,  max:5,   cd:0.2, icon:"🍊",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Limón",              u:"kg", stock:2,   min:2,  max:5,   cd:0.2, icon:"🍋",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Tomate perita",      u:"kg", stock:1,   min:3,  max:6,   cd:0.2, icon:"🍅",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Tomate cherry",      u:"kg", stock:0.5, min:0.5,max:2,   cd:0.08,icon:"🍅",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Banana",             u:"kg", stock:1,   min:1,  max:3,   cd:0.15,icon:"🍌",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Palta",              u:"kg", stock:1.5, min:1,  max:3,   cd:0.18,icon:"🥑",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Albahaca",           u:"u",  stock:2,   min:2,  max:5,   cd:0.2, icon:"🌿",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Frutilla",           u:"kg", stock:0,   min:0.5,max:2,   cd:0.05,icon:"🍓",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Jengibre",           u:"gr", stock:200, min:200,max:500, cd:5,   icon:"🌿",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Batata",             u:"kg", stock:1,   min:1,  max:3,   cd:0.02,icon:"🍠",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Zanahoria",          u:"kg", stock:1,   min:1,  max:3,   cd:0.05,icon:"🥕",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Pera",               u:"u",  stock:1,   min:1,  max:5,   cd:0.05,icon:"🍐",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Berenjena",          u:"u",  stock:2,   min:2,  max:5,   cd:0.1, icon:"🍆",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Zucchini",           u:"u",  stock:2,   min:2,  max:5,   cd:0.05,icon:"🥒",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Puerros",            u:"kg", stock:1,   min:1,  max:3,   cd:0.03,icon:"🌱",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Cebolla morada",     u:"kg", stock:0.5, min:0.5,max:2,   cd:0.03,icon:"🧅",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Cebolla de verdeo",  u:"kg", stock:0.5, min:0.5,max:2,   cd:0.03,icon:"🌱",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Ajo",                u:"u",  stock:1,   min:1,  max:3,   cd:0.05,icon:"🧄",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Morrón",             u:"u",  stock:1,   min:1,  max:3,   cd:0.03,icon:"🫑",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Rúcula",             u:"u",  stock:1,   min:1,  max:3,   cd:0.05,icon:"🌿",cat:"Verdulería", prov:"Verdulería"},
+  {item:"Miel",               u:"gr", stock:250, min:250,max:1000,cd:12,  icon:"🍯",cat:"Verdulería", prov:"Miel"},
+  {item:"Frambuesas",         u:"kg", stock:1.5, min:1,  max:3,   cd:0.03,icon:"🫐",cat:"Il Mirtilo", prov:"Il Mirtilo"},
+  {item:"Frutos rojos",       u:"kg", stock:1,   min:2,  max:4,   cd:0.05,icon:"🫐",cat:"Il Mirtilo", prov:"Il Mirtilo"},
+  {item:"Maracuyá",           u:"kg", stock:0.25,min:0.25,max:1,  cd:0.02,icon:"🍈",cat:"Il Mirtilo", prov:"Il Mirtilo"},
+  {item:"Lomito ahumado",     u:"kg", stock:1,   min:0.5,max:2,   cd:0.10,icon:"🥩",cat:"Francesco",  prov:"Francesco"},
+  {item:"Queso Gouda",        u:"kg", stock:2,   min:1,  max:4,   cd:0.12,icon:"🧀",cat:"Francesco",  prov:"Francesco"},
+  {item:"Queso Dambo",        u:"kg", stock:1.5, min:1,  max:3,   cd:0.10,icon:"🧀",cat:"Francesco",  prov:"Francesco"},
+  {item:"Queso Reggianito",   u:"kg", stock:1,   min:0.5,max:2,   cd:0.05,icon:"🧀",cat:"Francesco",  prov:"Francesco"},
+  {item:"Queso Provolone",    u:"kg", stock:1,   min:0.5,max:2,   cd:0.03,icon:"🧀",cat:"Francesco",  prov:"Francesco"},
+  {item:"DDL Vacalin",        u:"kg", stock:6,   min:1,  max:10,  cd:0.14,icon:"🍯",cat:"Francesco",  prov:"Francesco"},
+  {item:"Mortadela pistachos",u:"kg", stock:0.5, min:0.5,max:2,   cd:0.08,icon:"🥩",cat:"Francesco",  prov:"Francesco"},
+  {item:"Jamón crudo",        u:"kg", stock:0.5, min:0.5,max:2,   cd:0.03,icon:"🥩",cat:"Francesco",  prov:"Francesco"},
+  {item:"Bondiola",           u:"kg", stock:0.5, min:0.5,max:2,   cd:0.03,icon:"🥩",cat:"Francesco",  prov:"Francesco"},
+  {item:"Aceite de oliva",    u:"ml", stock:500, min:500,max:2000,cd:10,  icon:"🫙",cat:"Divina Oliva",prov:"Divina Oliva"},
+  {item:"Pesto",              u:"gr", stock:400, min:200,max:634, cd:4,   icon:"🫙",cat:"Divina Oliva",prov:"Divina Oliva"},
+  {item:"Pan masa madre",     u:"u",  stock:3,   min:3,  max:8,   cd:0.95,icon:"🍞",cat:"Panificados",prov:"Maza"},
+  {item:"Medialuna",          u:"u",  stock:90,  min:20, max:180, cd:22,  icon:"🥐",cat:"Panificados",prov:"Punto"},
+  {item:"Vasos 8oz",          u:"u",  stock:278, min:50, max:400, cd:20,  icon:"🥤",cat:"Descartables",prov:"Manapel"},
+  {item:"Vasos 12oz",         u:"u",  stock:85,  min:70, max:300, cd:10,  icon:"🥤",cat:"Descartables",prov:"Manapel"},
+  {item:"Vasos fríos",        u:"u",  stock:35,  min:30, max:100, cd:5,   icon:"🥤",cat:"Descartables",prov:"Manapel"},
+  {item:"Cajas delivery ch.", u:"u",  stock:40,  min:10, max:80,  cd:2,   icon:"📦",cat:"Descartables",prov:"Manapel"},
+  {item:"Servilletas",        u:"u",  stock:0,   min:500,max:1000,cd:30,  icon:"🧻",cat:"Descartables",prov:"Manapel"},
+  {item:"Bolsas Kraft",       u:"pk", stock:3,   min:1,  max:4,   cd:0.1, icon:"🛍️",cat:"Descartables",prov:"Manapel"},
+  {item:"Film PVC",           u:"u",  stock:1,   min:0.5,max:2,   cd:0.05,icon:"📦",cat:"Descartables",prov:"Manapel"},
+  {item:"Rollo aluminio",     u:"u",  stock:1,   min:0.5,max:2,   cd:0.05,icon:"📦",cat:"Descartables",prov:"Manapel"},
+  {item:"Earl Grey",          u:"gr", stock:60,  min:30, max:200, cd:2,   icon:"🍵",cat:"Té",          prov:"Té"},
+  {item:"Té verde",           u:"gr", stock:30,  min:30, max:200, cd:0.5, icon:"🍵",cat:"Té",          prov:"Té"},
 ];
 
 const COMPROMISOS_INIT = [
@@ -207,13 +277,20 @@ const JUNIO_CAL={
   20:[{tipo:"out",label:"Sindicatos",monto:279692},{tipo:"out",label:"Payway",monto:433155}],
 };
 
-// ── HELPERS ──────────────────────────────────────────────────────
-const Pill=({label,color})=>(
-  <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:`${color}22`,color,border:`1px solid ${color}44`,fontWeight:600}}>{label}</span>
-);
-const SL=({children,mt})=>(
-  <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".05em",textTransform:"uppercase",margin:`${mt||"1.25rem"} 0 .6rem`}}>{children}</div>
-);
+const COMBOS = [
+  {nombre:"Latte + Cookie",        tipo:"Desayuno",pv:8000, pvSug:8500, ct:6679,rent:16.5,u:45,accion:"subir",  nota:"Subir a $8.500 — rent. pasa a 21.2%."},
+  {nombre:"Latte + Tostadas",      tipo:"Desayuno",pv:9900, pvSug:11500,ct:9237,rent:6.7, u:12,accion:"revisar",nota:"Crítico (6.7%). Subir a $11.500 urgente."},
+  {nombre:"Latte + Tostado",       tipo:"Desayuno",pv:12300,pvSug:13500,ct:10870,rent:11.6,u:18,accion:"subir", nota:"Subir a $13.500 — rent. pasa a 19.5%."},
+  {nombre:"Latte + Chipa",         tipo:"Desayuno",pv:8000, pvSug:8500, ct:6829,rent:14.6,u:55,accion:"subir",  nota:"El más vendido. Subir $500 sin riesgo."},
+  {nombre:"Latte + Alfajor Alm.",  tipo:"Desayuno",pv:8000, pvSug:8000, ct:6363,rent:20.5,u:22,accion:"ok",    nota:"Mejor margen del desayuno. Mantener."},
+  {nombre:"S. Mortadela + Bebida", tipo:"Almuerzo",pv:16500,pvSug:16500,ct:12714,rent:22.9,u:15,accion:"ok",   nota:"Buen margen. Potenciar cuando salga el Bondio."},
+  {nombre:"S. Bondio + Bebida",    tipo:"Almuerzo",pv:19000,pvSug:null, ct:13129,rent:30.9,u:8, accion:"revisar",nota:"Bondio sale pronto. No invertir."},
+  {nombre:"S. Veggie + Bebida",    tipo:"Almuerzo",pv:16500,pvSug:null, ct:12429,rent:24.7,u:6, accion:"revisar",nota:"Veggie sale pronto. Planificar reemplazo."},
+];
+
+// ── HELPERS ───────────────────────────────────────────────────────
+const Pill=({label,color})=>(<span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:`${color}22`,color,border:`1px solid ${color}44`,fontWeight:600}}>{label}</span>);
+const SL=({children})=>(<div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".05em",textTransform:"uppercase",margin:"1.25rem 0 .6rem"}}>{children}</div>);
 const KPI=({label,value,sub,color,borde})=>(
   <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${borde?borde+"44":C.border}`}}>
     <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{label}</div>
@@ -221,24 +298,179 @@ const KPI=({label,value,sub,color,borde})=>(
     {sub&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}
   </div>
 );
+const AC={potenciar:C.green,subir:C.yellow,revisar:C.red,ok:C.blue};
+const AL={potenciar:"⭐ Potenciar",subir:"↑ Subir precio",revisar:"⚠️ Revisar",ok:"✓ OK"};
 
-// ── CALENDARIO ────────────────────────────────────────────────────
+// ── FICHA DE COSTO ────────────────────────────────────────────────
+function FichaCosto({prod,totalGF,onClose}){
+  const receta=RECETAS[prod.n]||[];
+  const [editando,setEditando]=useState(false);
+  const [ingrs,setIngrs]=useState(receta.map(r=>({...r})));
+  const mpCalc=ingrs.reduce((s,r)=>s+(r.gr*r.pu/1000),0);
+  const gfu=prod.pv*totalGF/FACT_BASE;
+  const iibb=prod.pv*0.015;
+  const tc=prod.pv*0.0501;
+  const ct=mpCalc+gfu+iibb+tc;
+  const rent=(prod.pv-ct)/prod.pv*100;
+  const rentC=rent>30?C.green:rent>20?C.yellow:C.red;
+  return(
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+      <div style={{background:C.card,borderRadius:14,padding:"24px",width:500,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto",border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <div>
+            <div style={{fontSize:16,fontWeight:700}}>{prod.n}</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{prod.cat}</div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>×</button>
+        </div>
+
+        {/* Desglose */}
+        <div style={{background:C.card2,borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+          <div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:10,textTransform:"uppercase",letterSpacing:".05em"}}>Desglose del costo</div>
+          {[
+            {l:"Materia Prima",v:mpCalc,c:C.text},
+            {l:`GFU — PV (${fmt(prod.pv)}) × GF (${fmtK(totalGF)}) / Fact. (${fmtK(FACT_BASE)})`,v:gfu,c:C.muted},
+            {l:"IIBB (1.5%)",v:iibb,c:C.muted},
+            {l:"Tarjeta (5.01%)",v:tc,c:C.muted},
+          ].map((r,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}>
+              <span style={{fontSize:11,color:r.c}}>{r.l}</span>
+              <span style={{fontSize:11,fontWeight:600,color:r.c}}>{fmt(r.v)}</span>
+            </div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0 4px",borderTop:`1px solid ${C.border}`,marginTop:4}}>
+            <span style={{fontSize:13,fontWeight:700}}>Costo total</span>
+            <span style={{fontSize:13,fontWeight:700}}>{fmt(ct)}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
+            <span style={{fontSize:12,color:C.muted}}>Precio de venta</span>
+            <span style={{fontSize:12,color:C.muted}}>{fmt(prod.pv)}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",padding:"3px 0"}}>
+            <span style={{fontSize:13,fontWeight:700,color:rentC}}>Rentabilidad</span>
+            <span style={{fontSize:16,fontWeight:700,color:rentC}}>{rent.toFixed(1)}%</span>
+          </div>
+        </div>
+
+        {/* Receta */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:".05em"}}>
+            Receta {ingrs.length===0&&<span style={{color:C.red,fontSize:10}}>— pendiente</span>}
+          </div>
+          {ingrs.length>0&&(
+            <button onClick={()=>setEditando(!editando)}
+              style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${editando?C.accent:C.border}`,background:editando?C.accentDim:C.card,color:editando?C.accent:C.muted,cursor:"pointer"}}>
+              {editando?"✓ Guardar receta":"✏️ Editar receta"}
+            </button>
+          )}
+        </div>
+        {ingrs.length>0?(
+          <div style={{background:C.card2,borderRadius:10,overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead>
+                <tr>
+                  {["Ingrediente","Gr/ml/u","Precio/kg","Costo"].map(h=>(
+                    <th key={h} style={{textAlign:"left",padding:"7px 10px",color:C.muted,fontSize:10,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ingrs.map((r,i)=>(
+                  <tr key={i} style={{borderBottom:i<ingrs.length-1?`1px solid ${C.border}22`:"none"}}>
+                    <td style={{padding:"7px 10px"}}>{r.ing}</td>
+                    <td style={{padding:"7px 10px",textAlign:"center"}}>
+                      {editando
+                        ? <input type="number" step="0.5" value={r.gr} onChange={e=>setIngrs(ingrs.map((x,j)=>j===i?{...x,gr:Number(e.target.value)}:x))}
+                            style={{width:60,padding:"3px 6px",fontSize:12,background:C.bg,border:`1px solid ${C.accent}`,borderRadius:5,color:C.text,textAlign:"center"}}/>
+                        : r.gr
+                      }
+                    </td>
+                    <td style={{padding:"7px 10px",textAlign:"right",color:C.muted,fontSize:11}}>{fmt(r.pu)}/kg</td>
+                    <td style={{padding:"7px 10px",textAlign:"right",fontWeight:600}}>{fmt(r.gr*r.pu/1000)}</td>
+                  </tr>
+                ))}
+                <tr style={{borderTop:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+                  <td colSpan={3} style={{padding:"7px 10px",fontWeight:700}}>Total MP</td>
+                  <td style={{padding:"7px 10px",textAlign:"right",fontWeight:700,color:C.accent}}>{fmt(mpCalc)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ):(
+          <div style={{padding:16,background:C.card2,borderRadius:10,fontSize:12,color:C.muted,textAlign:"center"}}>Receta pendiente de cargar.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ── PROVEEDOR ALERTA ──────────────────────────────────────────────
+function ProvAlerta({prov,items,col,pedidoTexto,notif,onNotif}){
+  const [open,setOpen]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const tieneRojo=items.some(s=>s.nivel==="rojo");
+  const copy=()=>{
+    navigator.clipboard.writeText(pedidoTexto).then(()=>{
+      setCopied(true);
+      setTimeout(()=>setCopied(false),2000);
+    });
+  };
+  return(
+    <div style={{background:tieneRojo?C.redDim:C.yellowDim,borderRadius:10,padding:"10px 14px",border:`1px solid ${col}44`,marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setOpen(!open)}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:16}}>{tieneRojo?"🔴":"🟡"}</span>
+          <div>
+            <div style={{fontWeight:700,color:col,fontSize:12}}>{prov}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:1}}>{items.length} producto{items.length>1?"s":""} para reponer</div>
+          </div>
+        </div>
+        <span style={{color:col,fontSize:14}}>{open?"▲":"▼"}</span>
+      </div>
+      {open&&(
+        <div style={{marginTop:12}}>
+          {items.map((s,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:i<items.length-1?`1px solid ${col}22`:"none"}}>
+              <span style={{fontSize:12}}>{s.icon} {s.item} — stock: <span style={{color:col,fontWeight:700}}>{s.stock}{s.u}</span> · pedir: <span style={{fontWeight:600}}>{s.max}{s.u}</span></span>
+              {notif[s.item]
+                ? <span style={{fontSize:10,color:C.green,marginLeft:8}}>✓ {notif[s.item].quien}</span>
+                : <button onClick={e=>{e.stopPropagation();onNotif(s.item);}} style={{fontSize:10,padding:"2px 7px",borderRadius:6,border:`1px solid ${col}44`,background:`${col}18`,color:col,cursor:"pointer",marginLeft:8,flexShrink:0}}>Notificado</button>
+              }
+            </div>
+          ))}
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:10,color:C.muted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em"}}>Texto para enviar al proveedor</div>
+            <div style={{background:C.bg,borderRadius:8,padding:"10px 12px",fontSize:11,color:C.text,lineHeight:1.7,fontFamily:"monospace",whiteSpace:"pre-line",border:`1px solid ${C.border}`,marginBottom:8}}>
+              {pedidoTexto}
+            </div>
+            <button onClick={copy} style={{fontSize:11,padding:"6px 14px",borderRadius:6,border:`1px solid ${col}44`,background:copied?C.greenDim:col+"18",color:copied?C.green:col,cursor:"pointer",fontWeight:600}}>
+              {copied?"✓ Copiado!":"📋 Copiar mensaje"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── CALENDARIO CON TOOLTIP ────────────────────────────────────────
 function Calendario({compromisos,onConfirmar}){
   const [modal,setModal]=useState(null);
   const [tooltip,setTooltip]=useState(null);
+  const meses=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
   function DayCell({d,month,year,events}){
-    const hoy=new Date();
-    const isHoy=hoy.getDate()===d&&hoy.getMonth()===month&&hoy.getFullYear()===year;
-    const totalIn=events.filter(e=>e.tipo==="in"||e.tipo==="proy").reduce((s,e)=>s+e.monto,0);
+    const isHoy=new Date().getDate()===d&&new Date().getMonth()===month;
+    const totalIn=events.filter(e=>e.tipo!=="out").reduce((s,e)=>s+e.monto,0);
     const totalOut=events.filter(e=>e.tipo==="out").reduce((s,e)=>s+e.monto,0);
-    const hasMovs=events.length>0;
+    const has=events.length>0;
     return(
       <div
-        onMouseEnter={e=>hasMovs&&setTooltip({d,month,year,events,x:e.clientX,y:e.clientY})}
+        onMouseEnter={()=>has&&setTooltip({d,month,totalIn,totalOut})}
         onMouseLeave={()=>setTooltip(null)}
-        onClick={()=>hasMovs&&setModal({d,month,year,events})}
-        style={{border:`1px solid ${isHoy?C.accent:hasMovs?"#3a3028":C.border}`,borderRadius:6,padding:"4px 5px",minHeight:70,background:hasMovs?C.card2:C.card,cursor:hasMovs?"pointer":"default"}}>
+        onClick={()=>has&&setModal({d,month,year,events})}
+        style={{border:`1px solid ${isHoy?C.accent:has?"#3a3028":C.border}`,borderRadius:6,padding:"4px 5px",minHeight:70,background:has?C.card2:C.card,cursor:has?"pointer":"default"}}>
         <div style={{fontSize:10,fontWeight:600,color:isHoy?C.accent:C.muted,marginBottom:3}}>{d}</div>
         {events.slice(0,2).map((e,i)=>(
           <div key={i} style={{fontSize:9,borderRadius:3,padding:"1px 4px",marginBottom:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
@@ -248,79 +480,74 @@ function Calendario({compromisos,onConfirmar}){
           </div>
         ))}
         {events.length>2&&<div style={{fontSize:9,color:C.muted}}>+{events.length-2}</div>}
-        {totalIn>0&&<div style={{fontSize:9,color:C.green,marginTop:1,fontWeight:600}}>{Math.round(totalIn/1000)}k</div>}
+        {totalIn>0&&<div style={{fontSize:9,color:C.green,fontWeight:600}}>{Math.round(totalIn/1000)}k</div>}
         {totalOut>0&&<div style={{fontSize:9,color:C.red,fontWeight:600}}>-{Math.round(totalOut/1000)}k</div>}
       </div>
     );
   }
 
-  function buildCal(year,month,calEvents){
+  function buildCal(year,month,evs){
     const first=new Date(year,month,1).getDay();
     const days=new Date(year,month+1,0).getDate();
     const cells=[];
     for(let i=0;i<first;i++) cells.push(<div key={"e"+i} style={{minHeight:70}}/>);
-    for(let d=1;d<=days;d++)
-      cells.push(<DayCell key={d} d={d} month={month} year={year} events={calEvents[d]||[]}/>);
+    for(let d=1;d<=days;d++) cells.push(<DayCell key={d} d={d} month={month} year={year} events={evs[d]||[]}/>);
     return cells;
   }
 
   const dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const meses=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
   return(
-    <div style={{position:"relative"}}>
-      {/* Leyenda */}
-      <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:10}}>
+    <div>
+      {/* Tooltip flotante */}
+      {tooltip&&(
+        <div style={{position:"fixed",bottom:20,right:20,background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 16px",zIndex:500,minWidth:180,boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.accent,marginBottom:8}}>{tooltip.d}/{tooltip.month+1} — resumen</div>
+          {tooltip.totalIn>0&&<div style={{fontSize:12,color:C.green,marginBottom:4}}>↑ Entra: {fmt(tooltip.totalIn)}</div>}
+          {tooltip.totalOut>0&&<div style={{fontSize:12,color:C.red,marginBottom:4}}>↓ Sale: {fmt(tooltip.totalOut)}</div>}
+          <div style={{fontSize:10,color:C.muted,marginTop:4}}>Click para detalle completo</div>
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:14,marginBottom:10,flexWrap:"wrap"}}>
         {[{c:C.green,l:"Entrada"},{c:C.red,l:"Egreso"},{c:C.yellow,l:"Proyectado"}].map((x,i)=>(
           <span key={i} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:C.muted}}>
-            <span style={{width:10,height:10,borderRadius:2,background:`${x.c}33`,border:`1px solid ${x.c}66`,display:"inline-block"}}/>
-            {x.l}
+            <span style={{width:10,height:10,borderRadius:2,background:`${x.c}33`,border:`1px solid ${x.c}66`,display:"inline-block"}}/>{x.l}
           </span>
         ))}
-        <span style={{fontSize:11,color:C.muted,marginLeft:"auto"}}>Click en un día para ver detalle y confirmar pagos</span>
+        <span style={{fontSize:11,color:C.dim,marginLeft:"auto"}}>Hover = resumen · Click = detalle</span>
       </div>
 
-      {/* Mayo */}
-      <div style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:5}}>Mayo 2026</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>
-        {dias.map(d=><div key={d} style={{fontSize:10,color:C.dim,textAlign:"center",padding:"2px 0"}}>{d}</div>)}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:16}}>
-        {buildCal(2026,4,MAYO_CAL)}
-      </div>
+      {[{label:"Mayo 2026",year:2026,month:4,evs:MAYO_CAL},{label:"Junio 2026",year:2026,month:5,evs:JUNIO_CAL}].map(cal=>(
+        <div key={cal.label} style={{marginBottom:16}}>
+          <div style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:5}}>{cal.label}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>
+            {dias.map(d=><div key={d} style={{fontSize:10,color:C.dim,textAlign:"center",padding:"2px 0"}}>{d}</div>)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+            {buildCal(cal.year,cal.month,cal.evs)}
+          </div>
+        </div>
+      ))}
 
-      {/* Junio */}
-      <div style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:5}}>Junio 2026</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>
-        {dias.map(d=><div key={d} style={{fontSize:10,color:C.dim,textAlign:"center",padding:"2px 0"}}>{d}</div>)}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-        {buildCal(2026,5,JUNIO_CAL)}
-      </div>
-
-      {/* Modal día */}
       {modal&&(
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-          <div style={{background:C.card,borderRadius:14,padding:"24px 28px",width:360,maxWidth:"90vw",border:`1px solid ${C.border}`}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:C.card,borderRadius:14,padding:"24px 28px",width:380,maxWidth:"90vw",border:`1px solid ${C.border}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div style={{fontSize:15,fontWeight:700}}>{modal.d} de {meses[modal.month]} {modal.year}</div>
-              <button onClick={()=>setModal(null)} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>
+              <button onClick={()=>setModal(null)} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20}}>×</button>
             </div>
             {modal.events.map((e,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<modal.events.length-1?`1px solid ${C.border}`:"none"}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:600}}>{e.label}</div>
-                  <div style={{fontSize:10,color:C.muted,marginTop:2}}>
-                    {e.tipo==="out"?"Egreso comprometido":e.tipo==="proy"?"Entrada proyectada":"Entrada confirmada"}
-                  </div>
+                  <div style={{fontSize:10,color:C.muted,marginTop:2}}>{e.tipo==="out"?"Egreso comprometido":e.tipo==="proy"?"Entrada proyectada":"Entrada confirmada"}</div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:13,fontWeight:700,color:e.tipo==="out"?C.red:e.tipo==="proy"?C.yellow:C.green,marginBottom:4}}>
                     {e.tipo==="out"?"-":"+"}{fmt(e.monto)}
                   </div>
                   {e.tipo==="out"&&(
-                    <button
-                      onClick={()=>{onConfirmar&&onConfirmar(e.label);}}
+                    <button onClick={()=>{onConfirmar&&onConfirmar(e.label);setModal(null);}}
                       style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.green}44`,background:C.greenDim,color:C.green,cursor:"pointer"}}>
                       ✓ Pagado
                     </button>
@@ -335,15 +562,12 @@ function Calendario({compromisos,onConfirmar}){
   );
 }
 
-// ── LOGIN ──────────────────────────────────────────────────────────
+// ── LOGIN ─────────────────────────────────────────────────────────
 function Login({onLogin}){
   const [pass,setPass]=useState("");
   const [who,setWho]=useState("macro");
   const [error,setError]=useState(false);
-  const handle=()=>{
-    if(pass===PASS) onLogin(who);
-    else{setError(true);setTimeout(()=>setError(false),2000);}
-  };
+  const handle=()=>{ if(pass===PASS) onLogin(who); else{setError(true);setTimeout(()=>setError(false),2000);} };
   return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Georgia,serif"}}>
       <div style={{width:340}}>
@@ -362,16 +586,11 @@ function Login({onLogin}){
               </button>
             ))}
           </div>
-          <input type="password" placeholder="Contraseña" value={pass}
-            onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}
-            style={{width:"100%",padding:"11px 14px",background:C.bg,border:`1px solid ${error?"#c05040":C.border}`,borderRadius:8,color:C.text,fontSize:14,marginBottom:error?6:14}}
-          />
+          <input type="password" placeholder="Contraseña" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}
+            style={{width:"100%",padding:"11px 14px",background:C.bg,border:`1px solid ${error?"#c05040":C.border}`,borderRadius:8,color:C.text,fontSize:14,marginBottom:error?6:14}}/>
           {error&&<div style={{fontSize:11,color:C.red,marginBottom:10}}>Contraseña incorrecta</div>}
-          <button onClick={handle} style={{width:"100%",padding:11,background:C.accent,border:"none",borderRadius:8,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>
-            Ingresar
-          </button>
+          <button onClick={handle} style={{width:"100%",padding:11,background:C.accent,border:"none",borderRadius:8,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>Ingresar</button>
         </div>
-        <div style={{textAlign:"center",marginTop:14,fontSize:10,color:C.dim}}>Batata © 2026 · Uso interno</div>
       </div>
     </div>
   );
@@ -385,63 +604,52 @@ function VistaDiaria({onSwitch}){
   const [modalNotif,setModalNotif]=useState(null);
   const stockRojo=stock.filter(s=>s.stock<s.min);
   const stockAmarillo=stock.filter(s=>s.stock>=s.min&&s.stock<s.min*1.5);
-  const pendientes=compromisos.filter(c=>!c.pagado);
   const hoy=new Date();
-  const dias=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-  const meses=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const diasNombre=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  const mesesNombre=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const ENTREGAS=[
-    {prov:"Serenísima",  dias:"Mar y Jue",prox:"Jue 29/05",icon:"🥛"},
-    {prov:"Verdulería",  dias:"Martes",   prox:"Mar 03/06",icon:"🥬"},
-    {prov:"Maza",        dias:"Jueves",   prox:"Jue 29/05",icon:"🍞"},
-    {prov:"Alyser",      dias:"Lun a Vie",prox:"Lun 02/06",icon:"📦"},
-    {prov:"Francesco",   dias:"Lun a Sáb",prox:"Lun 02/06",icon:"🧀"},
-    {prov:"Punto",       dias:"Vie c/2sem",prox:"Vie 06/06",icon:"🥐"},
+    {prov:"Serenísima",   dias:"Mar y Jue",     prox:"Jue 29/05",icon:"🥛"},
+    {prov:"Verdulería",   dias:"Martes",        prox:"Mar 03/06",icon:"🥬"},
+    {prov:"Maza",         dias:"Miércoles",     prox:"Mié 28/05",icon:"🍞"},
+    {prov:"Alyser",       dias:"Mar a Vie",     prox:"Mar 27/05",icon:"📦"},
+    {prov:"Francesco",    dias:"Lun a Sáb",     prox:"Lun 02/06",icon:"🧀"},
+    {prov:"Punto",        dias:"Vie c/2sem",    prox:"Vie 06/06",icon:"🥐"},
+    {prov:"Il Mirtilo",   dias:"Jue o Vie c/mes",prox:"Vie 30/05",icon:"🫐"},
   ];
-  const marcarNotif=(item,quien)=>{
-    setNotif(prev=>({...prev,[item]:{quien,fecha:new Date().toLocaleDateString("es-AR")}}));
-    setModalNotif(null);
-  };
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"Georgia,serif",padding:"0 0 60px"}}>
+      {modalNotif&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:C.card,borderRadius:12,padding:24,width:300,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>¿Quién notificó?</div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:16}}>{modalNotif}</div>
+            {["Lautaro","Quillen"].map(q=>(
+              <button key={q} onClick={()=>{setNotif(p=>({...p,[modalNotif]:{quien:q}}));setModalNotif(null);}}
+                style={{width:"100%",padding:10,marginBottom:8,borderRadius:8,border:`1px solid ${C.border}`,background:C.card2,color:C.text,fontSize:13,cursor:"pointer",fontWeight:600}}>{q}</button>
+            ))}
+            <button onClick={()=>setModalNotif(null)} style={{width:"100%",padding:8,borderRadius:8,border:"none",background:"transparent",color:C.muted,fontSize:12,cursor:"pointer"}}>Cancelar</button>
+          </div>
+        </div>
+      )}
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"16px 20px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <div style={{fontSize:22,fontWeight:700,color:C.accent,letterSpacing:"-1px"}}>batata <span style={{fontSize:12,color:C.muted,fontWeight:400,letterSpacing:0}}>diario</span></div>
-            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{dias[hoy.getDay()]}, {hoy.getDate()} de {meses[hoy.getMonth()]}</div>
+            <div style={{fontSize:22,fontWeight:700,color:C.accent,letterSpacing:"-1px"}}>batata <span style={{fontSize:12,color:C.muted,fontWeight:400}}>diario</span></div>
+            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{diasNombre[hoy.getDay()]}, {hoy.getDate()} de {mesesNombre[hoy.getMonth()]}</div>
           </div>
           <button onClick={onSwitch} style={{fontSize:11,padding:"5px 12px",borderRadius:6,border:`1px solid ${C.border}`,background:C.card2,color:C.muted,cursor:"pointer"}}>Ver Macro ↗</button>
         </div>
       </div>
-
       <div style={{maxWidth:520,margin:"0 auto",padding:"20px 16px"}}>
-
-        {/* Modal notificado */}
-        {modalNotif&&(
-          <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-            <div style={{background:C.card,borderRadius:12,padding:"24px",width:300,border:`1px solid ${C.border}`}}>
-              <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>¿Quién notificó?</div>
-              <div style={{fontSize:12,color:C.muted,marginBottom:16}}>{modalNotif}</div>
-              {["Lautaro","Quillen"].map(q=>(
-                <button key={q} onClick={()=>marcarNotif(modalNotif,q)}
-                  style={{width:"100%",padding:"10px",marginBottom:8,borderRadius:8,border:`1px solid ${C.border}`,background:C.card2,color:C.text,fontSize:13,cursor:"pointer",fontWeight:600}}>
-                  {q}
-                </button>
-              ))}
-              <button onClick={()=>setModalNotif(null)} style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:"transparent",color:C.muted,fontSize:12,cursor:"pointer"}}>Cancelar</button>
-            </div>
-          </div>
-        )}
-
-        {/* Stock alertas */}
         {stockRojo.length>0&&(
           <div style={{background:C.redDim,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.red}44`,marginBottom:10}}>
             <div style={{fontWeight:700,color:C.red,fontSize:12,marginBottom:8}}>🔴 Reponer ya</div>
             {stockRojo.map((s,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0"}}>
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:i<stockRojo.length-1?`1px solid ${C.red}22`:"none"}}>
                 <span style={{fontSize:12}}>{s.icon} {s.item} — <span style={{color:C.red,fontWeight:700}}>{s.stock}{s.u}</span></span>
                 {notif[s.item]
-                  ? <span style={{fontSize:10,color:C.green}}>✓ Notificado por {notif[s.item].quien}</span>
-                  : <button onClick={()=>setModalNotif(s.item)} style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.yellow}44`,background:C.yellowDim,color:C.yellow,cursor:"pointer"}}>Notificado</button>
+                  ? <span style={{fontSize:10,color:C.green,marginLeft:8}}>✓ {notif[s.item].quien}</span>
+                  : <button onClick={()=>setModalNotif(s.item)} style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.yellow}44`,background:C.yellowDim,color:C.yellow,cursor:"pointer",marginLeft:8}}>Notificado</button>
                 }
               </div>
             ))}
@@ -450,15 +658,16 @@ function VistaDiaria({onSwitch}){
         {stockAmarillo.length>0&&(
           <div style={{background:C.yellowDim,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.yellow}44`,marginBottom:12}}>
             <div style={{fontWeight:700,color:C.yellow,fontSize:12,marginBottom:8}}>🟡 Programar compra</div>
-            {stockAmarillo.slice(0,5).map((s,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0"}}>
+            {stockAmarillo.slice(0,6).map((s,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:i<Math.min(stockAmarillo.length,6)-1?`1px solid ${C.yellow}22`:"none"}}>
                 <span style={{fontSize:12}}>{s.icon} {s.item} — <span style={{color:C.yellow,fontWeight:700}}>{s.stock}{s.u}</span></span>
                 {notif[s.item]
-                  ? <span style={{fontSize:10,color:C.green}}>✓ {notif[s.item].quien}</span>
-                  : <button onClick={()=>setModalNotif(s.item)} style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.yellow}44`,background:C.yellowDim,color:C.yellow,cursor:"pointer"}}>Notificado</button>
+                  ? <span style={{fontSize:10,color:C.green,marginLeft:8}}>✓ {notif[s.item].quien}</span>
+                  : <button onClick={()=>setModalNotif(s.item)} style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.yellow}44`,background:C.yellowDim,color:C.yellow,cursor:"pointer",marginLeft:8}}>Notificado</button>
                 }
               </div>
             ))}
+            {stockAmarillo.length>6&&<div style={{fontSize:10,color:C.muted,marginTop:4}}>+{stockAmarillo.length-6} más</div>}
           </div>
         )}
         {stockRojo.length===0&&stockAmarillo.length===0&&(
@@ -466,12 +675,7 @@ function VistaDiaria({onSwitch}){
             <div style={{fontWeight:700,color:C.green,fontSize:12}}>✅ Stock OK — todo dentro del rango</div>
           </div>
         )}
-
-        {/* Pagos pendientes */}
-        <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".05em",textTransform:"uppercase",margin:"1rem 0 .6rem",display:"flex",alignItems:"center",gap:8}}>
-          Confirmar pagos
-          {pendientes.length>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,padding:"1px 7px",fontSize:10}}>{pendientes.length}</span>}
-        </div>
+        <SL>Confirmar pagos {compromisos.filter(c=>!c.pagado).length>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,padding:"1px 7px",fontSize:10,marginLeft:6}}>{compromisos.filter(c=>!c.pagado).length}</span>}</SL>
         <div style={{background:C.card,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden",marginBottom:16}}>
           {compromisos.map((c,i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<compromisos.length-1?`1px solid ${C.border}`:"none",opacity:c.pagado?.5:1}}>
@@ -484,19 +688,14 @@ function VistaDiaria({onSwitch}){
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:13,fontWeight:700,color:c.pagado?C.muted:C.red,marginBottom:4}}>{fmt(c.monto)}</div>
-                {c.pagado
-                  ? <span style={{fontSize:11,color:C.green}}>✓ Pagado</span>
+                {c.pagado ? <span style={{fontSize:11,color:C.green}}>✓ Pagado</span>
                   : <button onClick={()=>setCompromisos(compromisos.map((x,j)=>j===i?{...x,pagado:true}:x))}
-                      style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${C.green}44`,background:C.greenDim,color:C.green,cursor:"pointer",fontWeight:600}}>
-                      ✓ Confirmar
-                    </button>
+                      style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${C.green}44`,background:C.greenDim,color:C.green,cursor:"pointer",fontWeight:600}}>✓ Confirmar</button>
                 }
               </div>
             </div>
           ))}
         </div>
-
-        {/* Entregas */}
         <SL>Próximas entregas</SL>
         <div style={{background:C.card,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
           {ENTREGAS.map((e,i)=>(
@@ -527,19 +726,18 @@ function VistaMacro({onSwitch}){
   const [compromisos,setCompromisos]=useState(COMPROMISOS_INIT);
   const [notif,setNotif]=useState({});
   const [modalNotif,setModalNotif]=useState(null);
+  const [fichaprod,setFichaprod]=useState(null);
 
   const totalGF=gf.reduce((s,g)=>s+g.monto,0);
   const provMes=4500000;
-  const ventas=VENTAS.reduce((s,d)=>s+d.v,0);
-  const txn=602;
-  const diasOp=16;
+  const ventas=DIAS_MAYO.reduce((s,d)=>s+d.v,0);
+  const diasOp=17;
   const promDia=Math.round(ventas/diasOp);
   const proyMes=promDia*24;
   const resultado=proyMes-totalGF-provMes;
   const totalCaja=saldos.mp+saldos.bbva+saldos.ef;
   const stockRojo=stock.filter(s=>s.stock<s.min);
   const stockAmarillo=stock.filter(s=>s.stock>=s.min&&s.stock<s.min*1.5);
-  const prodsActivos=TOP_PRODS.length;
 
   const TABS=[
     {id:"inicio",   label:"Inicio",   icon:"◈"},
@@ -551,59 +749,31 @@ function VistaMacro({onSwitch}){
     {id:"resultado",label:"Resultado",icon:"≡"},
     {id:"config",   label:"Config",   icon:"⚙"},
   ];
-  const ts=id=>({
-    padding:"7px 11px",cursor:"pointer",fontSize:11,fontWeight:tab===id?700:500,
-    color:tab===id?C.accent:C.muted,background:tab===id?C.accentDim:"transparent",
-    border:"none",borderRadius:6,transition:"all .15s",whiteSpace:"nowrap",
-  });
-
-  // Orden menú: potenciar > subir > revisar > ok
-  const ordenAccion={potenciar:0,subir:1,revisar:2,ok:3};
-  const prodsSorted=[...TOP_PRODS].sort((a,b)=>ordenAccion[a.accion]-ordenAccion[b.accion]);
-  const accionColor={potenciar:C.green,subir:C.yellow,revisar:C.red,ok:C.blue};
-  const accionLabel={potenciar:"⭐ Potenciar",subir:"↑ Subir precio",revisar:"⚠️ Revisar",ok:"✓ OK"};
-
-  const CustomTooltip=({active,payload,label})=>{
-    if(active&&payload&&payload.length){
-      const dia=DIAS_MAYO.find(d=>`${d.dia}/05`===label);
-      return(
-        <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize:11}}>
-          <div style={{fontWeight:700,marginBottom:4}}>{label}</div>
-          {dia?.activo
-            ? <div style={{color:C.green}}>{fmt(payload[0].value)}</div>
-            : <div style={{color:C.muted}}>Sin operación</div>
-          }
-        </div>
-      );
-    }
-    return null;
-  };
+  const ts=id=>({padding:"7px 11px",cursor:"pointer",fontSize:11,fontWeight:tab===id?700:500,color:tab===id?C.accent:C.muted,background:tab===id?C.accentDim:"transparent",border:"none",borderRadius:6,transition:"all .15s",whiteSpace:"nowrap"});
+  const ordenAC={potenciar:0,subir:1,revisar:2,ok:3};
+  const prodsSorted=[...RANKING].sort((a,b)=>ordenAC[a.accion]-ordenAC[b.accion]);
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"Georgia,serif",padding:"0 0 40px"}}>
-
-      {/* Modal notificado */}
+      {fichaprod&&<FichaCosto prod={fichaprod} totalGF={totalGF} onClose={()=>setFichaprod(null)}/>}
       {modalNotif&&(
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-          <div style={{background:C.card,borderRadius:12,padding:"24px",width:300,border:`1px solid ${C.border}`}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:C.card,borderRadius:12,padding:24,width:300,border:`1px solid ${C.border}`}}>
             <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>¿Quién notificó?</div>
             <div style={{fontSize:12,color:C.muted,marginBottom:16}}>{modalNotif}</div>
             {["Lautaro","Quillen"].map(q=>(
               <button key={q} onClick={()=>{setNotif(p=>({...p,[modalNotif]:{quien:q}}));setModalNotif(null);}}
-                style={{width:"100%",padding:"10px",marginBottom:8,borderRadius:8,border:`1px solid ${C.border}`,background:C.card2,color:C.text,fontSize:13,cursor:"pointer",fontWeight:600}}>
-                {q}
-              </button>
+                style={{width:"100%",padding:10,marginBottom:8,borderRadius:8,border:`1px solid ${C.border}`,background:C.card2,color:C.text,fontSize:13,cursor:"pointer",fontWeight:600}}>{q}</button>
             ))}
-            <button onClick={()=>setModalNotif(null)} style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:"transparent",color:C.muted,fontSize:12,cursor:"pointer"}}>Cancelar</button>
+            <button onClick={()=>setModalNotif(null)} style={{width:"100%",padding:8,borderRadius:8,border:"none",background:"transparent",color:C.muted,fontSize:12,cursor:"pointer"}}>Cancelar</button>
           </div>
         </div>
       )}
 
-      {/* HEADER */}
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:980,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0 8px"}}>
-            <div style={{fontSize:22,fontWeight:700,color:C.accent,letterSpacing:"-1px"}}>batata <span style={{fontSize:12,color:C.muted,fontWeight:400,letterSpacing:0}}>macro</span></div>
+            <div style={{fontSize:22,fontWeight:700,color:C.accent,letterSpacing:"-1px"}}>batata <span style={{fontSize:12,color:C.muted,fontWeight:400}}>macro</span></div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               {stockRojo.length>0&&<span style={{fontSize:10,padding:"3px 8px",background:C.redDim,color:C.red,borderRadius:20,border:`1px solid ${C.red}44`}}>🔴 {stockRojo.length} sin stock</span>}
               {stockAmarillo.length>0&&<span style={{fontSize:10,padding:"3px 8px",background:C.yellowDim,color:C.yellow,borderRadius:20,border:`1px solid ${C.yellow}44`}}>🟡 {stockAmarillo.length} bajo</span>}
@@ -618,7 +788,7 @@ function VistaMacro({onSwitch}){
 
       <div style={{maxWidth:980,margin:"0 auto",padding:"24px 20px"}}>
 
-        {/* ══ INICIO ══ */}
+        {/* ═══ INICIO ═══ */}
         {tab==="inicio"&&(
           <div>
             <div style={{marginBottom:20}}>
@@ -627,33 +797,40 @@ function VistaMacro({onSwitch}){
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:20}}>
               <KPI label="Ventas acumuladas"  value={fmtK(ventas)}    sub={`${diasOp} días`}   color={C.green}/>
-              <KPI label="Proyección mayo"    value={fmtK(proyMes)}   sub="a promedio actual"  color={C.text}/>
-              <KPI label="Ticket promedio"    value={fmt(Math.round(ventas/txn))} sub="obj: $13.000" color={C.accent}/>
-              <KPI label="Resultado est."     value={fmtK(resultado)} sub="ventas − GF − prov"  color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
+              <KPI label="Proyección mayo"    value={fmtK(proyMes)}   sub="a promedio actual"/>
+              <KPI label="Ticket promedio"    value={fmt(Math.round(ventas/602))} sub="obj: $13.000" color={C.accent}/>
+              <KPI label="Resultado est."     value={fmtK(resultado)} sub="ventas − GF − prov" color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:14}}>Ventas diarias — Mayo 2026</div>
+              <div style={{fontSize:12,fontWeight:600,marginBottom:6}}>Ventas diarias — Mayo 2026</div>
+              <div style={{display:"flex",gap:12,marginBottom:10}}>
+                <span style={{fontSize:10,color:C.muted,display:"flex",alignItems:"center",gap:4}}><span style={{width:8,height:8,borderRadius:2,background:C.accent+"88",display:"inline-block"}}/> Fin de semana (Sáb/Dom)</span>
+              </div>
               <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={DIAS_MAYO.map(d=>({f:`${d.dia}/05`,v:d.v}))} margin={{top:0,right:0,bottom:0,left:0}}>
+                <AreaChart data={DIAS_MAYO.map(d=>({f:`${d.dia}`,v:d.v}))} margin={{top:0,right:0,bottom:0,left:0}}>
+                  <defs>
+                    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={C.accent} stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor={C.accent} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
-                  <XAxis dataKey="f" tick={{fontSize:8,fill:C.muted}} tickLine={false} axisLine={false} interval={3}/>
+                  <XAxis dataKey="f" tick={{fontSize:8,fill:C.muted}} tickLine={false} axisLine={false} interval={2}/>
                   <YAxis tick={{fontSize:9,fill:C.muted}} tickLine={false} axisLine={false} tickFormatter={v=>v>0?`$${Math.round(v/1000)}k`:""}/>
-                  <Tooltip content={<CustomTooltip/>}/>
-                  <Bar dataKey="v" radius={[3,3,0,0]}>
-                    {DIAS_MAYO.map((d,i)=><Cell key={i} fill={!d.activo?C.dim:d.dia===9||d.dia===10||d.dia===16||d.dia===17?C.accent:C.blue}/>)}
-                  </Bar>
-                </BarChart>
+                  <Tooltip formatter={v=>[v>0?fmt(v):"Sin operación","Ventas"]} labelFormatter={l=>`Día ${l} — ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(2026,4,parseInt(l)).getDay()]}`} contentStyle={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}/>
+                  <Area type="monotone" dataKey="v" stroke={C.accent} fill="url(#g1)" strokeWidth={2} dot={false}/>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`}}>
               <div style={{fontSize:12,fontWeight:600,marginBottom:12}}>Top 5 más vendidos</div>
-              {TOP_PRODS.slice(0,5).map((p,i)=>{
-                const catC=p.cat==="Café"?C.blue:p.cat==="Pastelería"?C.accent:C.green;
+              {RANKING.slice(0,5).map((p,i)=>{
+                const catC=p.cat==="Café"?C.blue:p.cat.includes("Past")?C.accent:C.green;
                 return(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:i<4?`1px solid ${C.border}22`:"none"}}>
                     <span style={{fontSize:16,fontWeight:800,color:C.dim,width:20}}>{i+1}</span>
                     <div style={{flex:1}}>
-                      <div style={{fontWeight:600,fontSize:12}}>{p.nombre}</div>
+                      <div style={{fontWeight:600,fontSize:12}}>{p.n}</div>
                       <div style={{fontSize:10,color:catC,marginTop:1}}>{p.cat} · {p.u} uds</div>
                     </div>
                     <Pill label={`${p.rent}%`} color={p.rent>30?C.green:p.rent>20?C.yellow:C.red}/>
@@ -664,24 +841,23 @@ function VistaMacro({onSwitch}){
           </div>
         )}
 
-        {/* ══ VENTAS ══ */}
+        {/* ═══ VENTAS ═══ */}
         {tab==="ventas"&&(
           <div>
             <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Ventas y productos</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:20}}>Mayo 2026 · datos reales Fudo · {diasOp} días completos</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:20}}>Mayo 2026 · Fudo real · {diasOp} días operados</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:20}}>
               <KPI label="Total acumulado"  value={fmtK(ventas)}  color={C.green}/>
-              <KPI label="Promedio diario"  value={fmt(promDia)}   color={C.text}/>
+              <KPI label="Promedio diario"  value={fmt(promDia)}/>
               <KPI label="Proyección mayo"  value={fmtK(proyMes)} color={C.accent}/>
-              <KPI label="Ticket promedio"  value={fmt(Math.round(ventas/txn))} color={C.text}/>
-              <KPI label="Transacciones"    value={txn}           color={C.text}/>
+              <KPI label="Ticket promedio"  value={fmt(Math.round(ventas/602))}/>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:14}}>Todos los días de mayo — hover para ver monto</div>
+              <div style={{fontSize:12,fontWeight:600,marginBottom:6}}>Todos los días de mayo — hover para ver monto y día</div>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={DIAS_MAYO.map(d=>({f:`${d.dia}`,v:d.v}))} margin={{top:0,right:0,bottom:0,left:0}}>
                   <defs>
-                    <linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={C.accent} stopOpacity={0.25}/>
                       <stop offset="95%" stopColor={C.accent} stopOpacity={0}/>
                     </linearGradient>
@@ -689,44 +865,47 @@ function VistaMacro({onSwitch}){
                   <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
                   <XAxis dataKey="f" tick={{fontSize:9,fill:C.muted}} tickLine={false} axisLine={false}/>
                   <YAxis tick={{fontSize:9,fill:C.muted}} tickLine={false} axisLine={false} tickFormatter={v=>v>0?`$${Math.round(v/1000)}k`:""}/>
-                  <Tooltip formatter={(v)=>[v>0?fmt(v):"Sin operación","Ventas"]} labelFormatter={l=>`Día ${l} de mayo`} contentStyle={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}/>
-                  <Area type="monotone" dataKey="v" stroke={C.accent} fill="url(#grad2)" strokeWidth={2} dot={false}/>
+                  <Tooltip formatter={v=>[v>0?fmt(v):"Sin operación","Ventas"]} labelFormatter={l=>`Día ${l} — ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(2026,4,parseInt(l)).getDay()]}`} contentStyle={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}/>
+                  <Area type="monotone" dataKey="v" stroke={C.accent} fill="url(#g2)" strokeWidth={2} dot={false}/>
                 </AreaChart>
               </ResponsiveContainer>
-              <div style={{display:"flex",gap:16,marginTop:8}}>
-                <span style={{fontSize:10,color:C.muted,display:"flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:2,background:C.blue,display:"inline-block"}}/> Semana</span>
-                <span style={{fontSize:10,color:C.muted,display:"flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:2,background:C.accent,display:"inline-block"}}/> Fin de semana</span>
-                <span style={{fontSize:10,color:C.muted,display:"flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:2,background:C.dim,display:"inline-block"}}/> Sin operación</span>
-              </div>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:"16px",border:`1px solid ${C.border}`}}>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:14}}>30 más vendidos — ordenados por unidades</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:8}}>
-                {TOP_PRODS.map((p,i)=>{
-                  const catC=p.cat==="Café"?C.blue:p.cat==="Pastelería"?C.accent:C.green;
-                  return(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:C.card2,borderRadius:8}}>
-                      <span style={{fontSize:14,fontWeight:800,color:C.dim,width:22,textAlign:"center"}}>{i+1}</span>
-                      <div style={{flex:1}}>
-                        <div style={{fontWeight:600,fontSize:12}}>{p.nombre}</div>
-                        <div style={{fontSize:10,color:catC,marginTop:1}}>{p.u} uds · {p.cat}</div>
-                      </div>
-                      <Pill label={`${p.rent}%`} color={p.rent>30?C.green:p.rent>20?C.yellow:C.red}/>
-                    </div>
-                  );
-                })}
-              </div>
+              <div style={{fontSize:12,fontWeight:600,marginBottom:14}}>Ranking completo — ordenado por unidades vendidas en mayo</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr style={{borderBottom:`1px solid ${C.border}`}}>
+                    {["#","Producto","Categoría","Unidades","Rentabilidad"].map(h=>(
+                      <th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:10,color:C.muted,fontWeight:600}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {RANKING.map((p,i)=>{
+                    const catC=p.cat==="Café"?C.blue:p.cat.includes("Past")?C.accent:C.green;
+                    return(
+                      <tr key={i} style={{borderBottom:`1px solid ${C.border}22`,background:i%2===0?"transparent":C.card2}}>
+                        <td style={{padding:"6px 8px",color:C.dim,fontSize:11,fontWeight:600}}>{i+1}</td>
+                        <td style={{padding:"6px 8px",fontWeight:600}}>{p.n}</td>
+                        <td style={{padding:"6px 8px"}}><span style={{fontSize:10,color:catC,fontWeight:600}}>{p.cat}</span></td>
+                        <td style={{padding:"6px 8px",fontWeight:700}}>{p.u}</td>
+                        <td style={{padding:"6px 8px"}}><span style={{fontWeight:700,color:p.rent>30?C.green:p.rent>20?C.yellow:C.red}}>{p.rent}%</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
-        {/* ══ CAJA ══ */}
+        {/* ═══ CAJA ═══ */}
         {tab==="caja"&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
               <div>
                 <div style={{fontSize:16,fontWeight:700}}>Caja real</div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>Saldos + compromisos + flujo proyectado</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>Saldos · compromisos · flujo proyectado</div>
               </div>
               <button onClick={()=>setEditSaldos(!editSaldos)} style={{padding:"6px 14px",fontSize:11,borderRadius:6,border:`1px solid ${editSaldos?C.accent:C.border}`,background:editSaldos?C.accentDim:C.card,color:editSaldos?C.accent:C.muted,cursor:"pointer"}}>
                 {editSaldos?"✓ Guardar":"✏️ Actualizar saldos"}
@@ -734,7 +913,7 @@ function VistaMacro({onSwitch}){
             </div>
             {editSaldos&&(
               <div style={{background:C.card,border:`1px solid ${C.yellow}44`,borderRadius:10,padding:"14px 16px",marginBottom:16}}>
-                <div style={{fontSize:10,color:C.yellow,marginBottom:12,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em"}}>Actualizar saldos</div>
+                <div style={{fontSize:10,color:C.yellow,marginBottom:12,fontWeight:600,textTransform:"uppercase"}}>Actualizar saldos</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
                   {[{k:"mp",l:"Mercado Pago"},{k:"bbva",l:"BBVA"},{k:"ef",l:"Efectivo"}].map(f=>(
                     <div key={f.k}>
@@ -747,24 +926,24 @@ function VistaMacro({onSwitch}){
               </div>
             )}
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:16}}>
-              <KPI label="Mercado Pago"   value={fmt(saldos.mp)}          sub="disponible ya"     color={C.text}/>
-              <KPI label="BBVA"           value={fmt(saldos.bbva)}        sub="disponible ya"     color={C.text}/>
-              <KPI label="Efectivo"       value={fmt(saldos.ef)}          sub="en caja"           color={C.text}/>
-              <KPI label="TOTAL EN MANO"  value={fmt(totalCaja)}          sub="suma de las tres"  color={C.green} borde={C.green}/>
-              <KPI label="Comprometido"   value={fmt(1596698)}            sub="esta semana"       color={C.red}   borde={C.red}/>
-              <KPI label="PLATA LIBRE"    value={fmt(totalCaja-1596698)}  sub="en mano − pagos"  color={totalCaja-1596698>0?C.green:C.red} borde={totalCaja-1596698>0?C.green:C.red}/>
+              <KPI label="Mercado Pago"   value={fmt(saldos.mp)}         sub="disponible ya"/>
+              <KPI label="BBVA"           value={fmt(saldos.bbva)}       sub="disponible ya"/>
+              <KPI label="Efectivo"       value={fmt(saldos.ef)}         sub="en caja"/>
+              <KPI label="TOTAL EN MANO"  value={fmt(totalCaja)}         color={C.green} borde={C.green}/>
+              <KPI label="Comprometido"   value={fmt(1596698)}           sub="esta semana" color={C.red} borde={C.red}/>
+              <KPI label="PLATA LIBRE"    value={fmt(totalCaja-1596698)} color={totalCaja-1596698>0?C.green:C.red} borde={totalCaja-1596698>0?C.green:C.red}/>
             </div>
             <div style={{background:C.redDim,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.red}44`,marginBottom:10}}>
-              <div style={{fontWeight:700,color:C.red,fontSize:12,marginBottom:4}}>⚡ Esta semana — urgente</div>
+              <div style={{fontWeight:700,color:C.red,fontSize:12,marginBottom:4}}>⚡ Esta semana</div>
               <div style={{fontSize:11,color:C.text}}>Cargas sociales $1.246.698 + Aguinaldo $350.000 = <strong>$1.596.698</strong> vencen el 22/05</div>
             </div>
             <div style={{background:C.yellowDim,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.yellow}44`,marginBottom:16}}>
               <div style={{fontWeight:700,color:C.yellow,fontSize:12,marginBottom:4}}>📅 Próximas semanas</div>
-              <div style={{fontSize:11,color:C.text}}>Alyser $81.544 → 28/05 · Alyser $389.404 → 08/06 · Sueldos $2.8M → 10/06</div>
+              <div style={{fontSize:11}}>Alyser $81.544 → 28/05 · Alyser $389.404 → 08/06 · Sueldos $2.8M → 10/06</div>
             </div>
             <SL>Calendario de flujo de caja</SL>
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
-              <Calendario compromisos={compromisos} onConfirmar={label=>setCompromisos(compromisos.map(c=>c.concepto.includes(label.split(" ")[0])?{...c,pagado:true}:c))}/>
+              <Calendario compromisos={compromisos} onConfirmar={label=>setCompromisos(compromisos.map(c=>c.concepto.toLowerCase().includes(label.toLowerCase().split(" ")[0])?{...c,pagado:true}:c))}/>
             </div>
             <SL>Compromisos pendientes</SL>
             <div style={{background:C.card,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
@@ -779,8 +958,7 @@ function VistaMacro({onSwitch}){
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:13,fontWeight:700,color:c.pagado?C.muted:C.red,marginBottom:4}}>{fmt(c.monto)}</div>
-                    {c.pagado
-                      ? <span style={{fontSize:11,color:C.green}}>✓ Pagado</span>
+                    {c.pagado ? <span style={{fontSize:11,color:C.green}}>✓ Pagado</span>
                       : <button onClick={()=>setCompromisos(compromisos.map((x,j)=>j===i?{...x,pagado:true}:x))}
                           style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${C.green}44`,background:C.greenDim,color:C.green,cursor:"pointer"}}>✓ Confirmar</button>
                     }
@@ -791,62 +969,48 @@ function VistaMacro({onSwitch}){
           </div>
         )}
 
-        {/* ══ STOCK ══ */}
+        {/* ═══ STOCK ═══ */}
         {tab==="stock"&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div>
                 <div style={{fontSize:16,fontWeight:700}}>Control de stock</div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{STOCK_INIT.length} insumos · consumo calculado con ventas reales de Fudo</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{STOCK_INIT.length} insumos · consumo calculado con ventas reales</div>
               </div>
               <button onClick={()=>setEditStock(!editStock)} style={{padding:"6px 14px",fontSize:11,borderRadius:6,border:`1px solid ${editStock?C.accent:C.border}`,background:editStock?C.accentDim:C.card,color:editStock?C.accent:C.muted,cursor:"pointer"}}>
                 {editStock?"✓ Listo":"✏️ Actualizar"}
               </button>
             </div>
-            {stockRojo.length>0&&(
-              <div style={{background:C.redDim,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.red}44`,marginBottom:10}}>
-                <div style={{fontWeight:700,color:C.red,marginBottom:8,fontSize:12}}>🔴 Reponer ya — bajo mínimo</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
-                  {stockRojo.map((s,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                      <Pill label={`${s.icon} ${s.item}: ${s.stock}${s.u}`} color={C.red}/>
-                      {notif[s.item]
-                        ? <span style={{fontSize:10,color:C.green}}>✓ {notif[s.item].quien}</span>
-                        : <button onClick={()=>setModalNotif(s.item)} style={{fontSize:10,padding:"2px 7px",borderRadius:6,border:`1px solid ${C.yellow}44`,background:C.yellowDim,color:C.yellow,cursor:"pointer"}}>Notificado</button>
-                      }
-                    </div>
-                  ))}
+            {(stockRojo.length>0||stockAmarillo.length>0)&&(()=>{
+              const alertas=[...stockRojo.map(s=>({...s,nivel:"rojo"})),...stockAmarillo.map(s=>({...s,nivel:"amarillo"}))];
+              const provs=[...new Set(alertas.map(s=>s.prov))];
+              return(
+                <div style={{marginBottom:16}}>
+                  {provs.map(prov=>{
+                    const items=alertas.filter(s=>s.prov===prov);
+                    const tieneRojo=items.some(s=>s.nivel==="rojo");
+                    const col=tieneRojo?C.red:C.yellow;
+                    const pedidoTexto=`Hola! Necesito pedir:\n${items.map(s=>`- ${s.item}: ${s.max}${s.u}`).join("\n")}`;
+                    return(
+                      <ProvAlerta key={prov} prov={prov} items={items} col={col} pedidoTexto={pedidoTexto}
+                        notif={notif} onNotif={setModalNotif}/>
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-            {stockAmarillo.length>0&&(
-              <div style={{background:C.yellowDim,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.yellow}44`,marginBottom:16}}>
-                <div style={{fontWeight:700,color:C.yellow,marginBottom:8,fontSize:12}}>🟡 Programar compra — stock bajo</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
-                  {stockAmarillo.map((s,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                      <Pill label={`${s.icon} ${s.item}: ${s.stock}${s.u}`} color={C.yellow}/>
-                      {notif[s.item]
-                        ? <span style={{fontSize:10,color:C.green}}>✓ {notif[s.item].quien}</span>
-                        : <button onClick={()=>setModalNotif(s.item)} style={{fontSize:10,padding:"2px 7px",borderRadius:6,border:`1px solid ${C.yellow}44`,background:C.yellowDim,color:C.yellow,cursor:"pointer"}}>Notificado</button>
-                      }
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {["Café","Lácteos","Insumos","Panificados","Verdulería","Fiambres","Descartables","Varios"].map(cat=>{
+              );
+            })()}
+            {["Café","Lácteos","Alyser","Quintal","Verdulería","Il Mirtilo","Francesco","Divina Oliva","Panificados","Descartables","Té"].map(cat=>{
               const items=stock.filter(s=>s.cat===cat);
               if(!items.length) return null;
               return(
                 <div key={cat} style={{marginBottom:20}}>
                   <SL>{cat}</SL>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:10}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
                     {items.map((s,idx)=>{
                       const pct=Math.min(100,(s.stock/s.max)*100);
                       const dias=s.cd>0?Math.round(s.stock/s.cd):99;
                       const col=s.stock<s.min?C.red:s.stock<s.min*1.5?C.yellow:C.green;
-                      const si=stock.indexOf(s);
+                      const si=stock.findIndex(x=>x.item===s.item);
                       return(
                         <div key={idx} style={{background:C.card,borderRadius:10,padding:14,border:`1px solid ${s.stock<s.min?C.red+"66":C.border}`}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -855,14 +1019,13 @@ function VistaMacro({onSwitch}){
                               <div style={{fontSize:10,color:C.muted,marginTop:1}}>~{dias}d · mín {s.min}{s.u}</div>
                             </div>
                             {editStock
-                              ? <input type="number" step="0.5" value={s.stock}
-                                  onChange={e=>setStock(stock.map((x,j)=>j===si?{...x,stock:Number(e.target.value)}:x))}
+                              ? <input type="number" step="0.5" value={s.stock} onChange={e=>setStock(stock.map((x,j)=>j===si?{...x,stock:Number(e.target.value)}:x))}
                                   style={{width:60,padding:"3px 6px",fontSize:14,fontWeight:700,background:C.bg,border:`1px solid ${C.accent}`,borderRadius:6,color:col,textAlign:"center"}}/>
                               : <span style={{fontSize:20,fontWeight:800,color:col}}>{s.stock}</span>
                             }
                           </div>
                           <div style={{height:5,background:C.card2,borderRadius:3,overflow:"hidden"}}>
-                            <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:3,transition:"width .3s"}}/>
+                            <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:3}}/>
                           </div>
                           <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.muted,marginTop:4}}>
                             <span>0</span><span style={{color:col}}>{s.stock}{s.u}</span><span>{s.max}</span>
@@ -878,45 +1041,40 @@ function VistaMacro({onSwitch}){
           </div>
         )}
 
-        {/* ══ MENÚ ══ */}
+        {/* ═══ MENÚ ═══ */}
         {tab==="menu"&&(
           <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}>
               <div>
                 <div style={{fontSize:16,fontWeight:700}}>Ingeniería de menú</div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{prodsActivos} productos activos · ordenados por acción recomendada</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>Todos los productos activos</div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:10,color:C.muted}}>Productos activos</div>
-                <div style={{fontSize:24,fontWeight:700,color:C.accent}}>{prodsActivos}</div>
+                <div style={{fontSize:24,fontWeight:700,color:C.accent}}>{RANKING.length}</div>
               </div>
             </div>
-
-            {/* Paneles insights */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10,marginBottom:20}}>
-              {[
-                {accion:"potenciar",titulo:"⭐ Potenciar",desc:"Alta rent. — comunicar más, ofrecer primero"},
-                {accion:"subir",titulo:"↑ Subir precio",desc:"Volumen ok pero margen ajustado"},
-                {accion:"revisar",titulo:"⚠️ Revisar",desc:"Margen bajo — están dañando la rentabilidad promedio"},
-              ].map(panel=>{
-                const items=TOP_PRODS.filter(p=>p.accion===panel.accion);
-                const col=accionColor[panel.accion];
+              {["potenciar","subir","revisar"].map(accion=>{
+                const items=RANKING.filter(p=>p.accion===accion);
+                const col=AC[accion];
+                const titulos={potenciar:"⭐ Potenciar",subir:"↑ Subir precio",revisar:"⚠️ Revisar"};
+                const descs={potenciar:"Alta rent. — comunicar más, ofrecer primero",subir:"Volumen ok pero margen ajustado",revisar:"Margen bajo — dañan la rentabilidad"};
                 return(
-                  <div key={panel.accion} style={{background:`${col}10`,borderRadius:10,padding:"14px 16px",border:`1px solid ${col}33`}}>
-                    <div style={{fontWeight:700,color:col,marginBottom:4,fontSize:12}}>{panel.titulo}</div>
-                    <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{panel.desc}</div>
-                    {items.map((p,i)=>(
-                      <div key={i} style={{fontSize:11,padding:"4px 0",borderBottom:i<items.length-1?`1px solid ${col}22`:"none",display:"flex",justifyContent:"space-between"}}>
-                        <span>{p.nombre}</span>
-                        <span style={{color:col,fontWeight:600}}>{p.rent}%</span>
+                  <div key={accion} style={{background:`${col}10`,borderRadius:10,padding:"14px 16px",border:`1px solid ${col}33`}}>
+                    <div style={{fontWeight:700,color:col,marginBottom:4,fontSize:12}}>{titulos[accion]}</div>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{descs[accion]}</div>
+                    {items.slice(0,6).map((p,i)=>(
+                      <div key={i} style={{fontSize:11,padding:"4px 0",borderBottom:i<Math.min(items.length,6)-1?`1px solid ${col}22`:"none",display:"flex",justifyContent:"space-between"}}>
+                        <span>{p.n}</span>
+                        <span style={{color:col,fontWeight:600}}>{p.rent}%{p.pvSug&&p.pvSug!==p.pv?` → ${fmt(p.pvSug)}`:""}</span>
                       </div>
                     ))}
+                    {items.length>6&&<div style={{fontSize:10,color:C.muted,marginTop:4}}>+{items.length-6} más</div>}
                   </div>
                 );
               })}
             </div>
-
-            {/* Tabla completa — ordenada por acción */}
             <div style={{background:C.card,borderRadius:12,padding:"16px",border:`1px solid ${C.border}`,marginBottom:20}}>
               <div style={{fontSize:12,fontWeight:600,marginBottom:14}}>Todos los productos — Potenciar · Subir · Revisar · OK</div>
               <div style={{overflowX:"auto"}}>
@@ -930,27 +1088,22 @@ function VistaMacro({onSwitch}){
                   </thead>
                   <tbody>
                     {prodsSorted.map((p,i)=>{
-                      const catC=p.cat==="Café"?C.blue:p.cat==="Pastelería"?C.accent:C.green;
-                      const ac=accionColor[p.accion];
+                      const catC=p.cat==="Café"?C.blue:p.cat.includes("Past")?C.accent:C.green;
+                      const ac=AC[p.accion];
                       const isFirst=i===0||prodsSorted[i-1].accion!==p.accion;
+                      const ct=p.mp+p.pv*totalGF/FACT_BASE+p.pv*0.015+p.pv*0.0501;
                       return(
                         <>
-                          {isFirst&&(
-                            <tr key={"sep"+i}>
-                              <td colSpan={8} style={{padding:"8px 8px 4px",fontSize:10,fontWeight:700,color:ac,borderTop:i>0?`1px solid ${C.border}`:"none"}}>
-                                {accionLabel[p.accion]}
-                              </td>
-                            </tr>
-                          )}
+                          {isFirst&&<tr key={"sep"+i}><td colSpan={8} style={{padding:"8px 8px 4px",fontSize:10,fontWeight:700,color:ac,borderTop:i>0?`1px solid ${C.border}`:"none"}}>{AL[p.accion]}</td></tr>}
                           <tr key={i} style={{background:i%2===0?"transparent":C.card2}}>
                             <td style={{padding:"6px 8px",color:C.dim,fontSize:11}}>{i+1}</td>
-                            <td style={{padding:"6px 8px",fontWeight:600}}>{p.nombre}</td>
+                            <td style={{padding:"6px 8px",fontWeight:600}}>{p.n}</td>
                             <td style={{padding:"6px 8px"}}><span style={{fontSize:10,color:catC,fontWeight:600}}>{p.cat}</span></td>
-                            <td style={{padding:"6px 8px"}}>{fmt(p.pv)}</td>
-                            <td style={{padding:"6px 8px",color:C.muted}}>{fmt(p.ct)}</td>
+                            <td style={{padding:"6px 8px"}}>{fmt(p.pv)}{p.pvSug&&p.pvSug!==p.pv&&<span style={{fontSize:10,color:C.yellow,marginLeft:4}}>→{fmt(p.pvSug)}</span>}</td>
+                            <td style={{padding:"6px 8px",color:C.muted}}>{fmt(ct)}</td>
                             <td style={{padding:"6px 8px"}}><span style={{fontWeight:700,color:p.rent>30?C.green:p.rent>20?C.yellow:C.red}}>{p.rent}%</span></td>
-                            <td style={{padding:"6px 8px",color:C.muted}}>{p.u} uds</td>
-                            <td style={{padding:"6px 8px"}}><span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`${ac}22`,color:ac,border:`1px solid ${ac}44`,fontWeight:600}}>{accionLabel[p.accion]}</span></td>
+                            <td style={{padding:"6px 8px",color:C.muted}}>{p.u}</td>
+                            <td style={{padding:"6px 8px"}}><span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`${ac}22`,color:ac,border:`1px solid ${ac}44`,fontWeight:600}}>{AL[p.accion]}</span></td>
                           </tr>
                         </>
                       );
@@ -959,21 +1112,19 @@ function VistaMacro({onSwitch}){
                 </table>
               </div>
             </div>
-
-            {/* COMBOS */}
             <SL>Combos Batateros</SL>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Disponibles de martes a viernes 8:30 a 13:30hs</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Mar a Vie · 8:30 a 13:30hs</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:10}}>
               {["Desayuno","Almuerzo"].map(tipo=>(
                 <div key={tipo}>
                   <div style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:".05em"}}>{tipo}</div>
                   {COMBOS.filter(c=>c.tipo===tipo).map((c,i)=>{
-                    const ac=accionColor[c.accion];
+                    const ac=AC[c.accion];
                     return(
                       <div key={i} style={{background:C.card,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.border}`,marginBottom:8}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                           <div style={{fontWeight:600,fontSize:12,flex:1,marginRight:8}}>{c.nombre}</div>
-                          <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`${ac}22`,color:ac,border:`1px solid ${ac}44`,fontWeight:600,flexShrink:0}}>{accionLabel[c.accion]}</span>
+                          <span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`${ac}22`,color:ac,border:`1px solid ${ac}44`,fontWeight:600,flexShrink:0}}>{AL[c.accion]}</span>
                         </div>
                         <div style={{display:"flex",gap:12,marginBottom:6,flexWrap:"wrap"}}>
                           <span style={{fontSize:11,color:C.muted}}>PV: <span style={{color:C.text,fontWeight:600}}>{fmt(c.pv)}</span></span>
@@ -981,7 +1132,7 @@ function VistaMacro({onSwitch}){
                           <span style={{fontSize:11,color:C.muted}}>Rent: <span style={{color:c.rent>20?C.green:c.rent>12?C.yellow:C.red,fontWeight:600}}>{c.rent}%</span></span>
                           <span style={{fontSize:11,color:C.muted}}>{c.u} uds</span>
                         </div>
-                        <div style={{fontSize:11,color:C.muted,lineHeight:1.5,padding:"6px 8px",background:C.card2,borderRadius:6}}>{c.nota}</div>
+                        <div style={{fontSize:11,color:C.muted,padding:"6px 8px",background:C.card2,borderRadius:6,lineHeight:1.5}}>{c.nota}</div>
                       </div>
                     );
                   })}
@@ -991,59 +1142,60 @@ function VistaMacro({onSwitch}){
           </div>
         )}
 
-        {/* ══ COSTOS ══ */}
+        {/* ═══ COSTOS ═══ */}
         {tab==="costos"&&(
           <div>
             <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Planillas de costos</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:20}}>Rentabilidad real por producto · precio venta · costo total · margen</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:20}}>Click en "Ver receta" para ver desglose completo de costos y receta editable</div>
             {["Café","Pastelería","Cocina"].map(cat=>{
-              const items=TOP_PRODS.filter(p=>p.cat===cat).sort((a,b)=>b.rent-a.rent);
+              const items=RANKING.filter(p=>p.cat===cat||p.cat===cat+" esp.").sort((a,b)=>b.rent-a.rent);
               const catC=cat==="Café"?C.blue:cat==="Pastelería"?C.accent:C.green;
+              const promRent=(items.reduce((s,p)=>s+p.rent,0)/items.length).toFixed(1);
               return(
                 <div key={cat} style={{marginBottom:24}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
                     <div style={{fontSize:13,fontWeight:700,color:catC}}>{cat}</div>
-                    <div style={{fontSize:11,color:C.muted}}>{items.length} productos</div>
+                    <div style={{fontSize:11,color:C.muted}}>{items.length} productos · rent. prom. {promRent}%</div>
                   </div>
                   <div style={{background:C.card,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                       <thead>
                         <tr style={{background:C.card2}}>
-                          {["Producto","Precio venta","Costo total","Margen $","Rent. %","Ventas/mes","Acción"].map(h=>(
-                            <th key={h} style={{textAlign:"left",padding:"8px 12px",fontSize:10,color:C.muted,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                          {["Producto","MP","GFU","IIBB","Tarjeta","Costo total","PV","Rent.",""].map(h=>(
+                            <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,fontWeight:600,borderBottom:`1px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {items.map((p,i)=>{
-                          const margen=p.pv-p.ct;
-                          const ac=accionColor[p.accion];
+                          const gfu=p.pv*totalGF/FACT_BASE;
+                          const iibb=p.pv*0.015;
+                          const tc=p.pv*0.0501;
+                          const ct=p.mp+gfu+iibb+tc;
+                          const rentC=p.rent>30?C.green:p.rent>20?C.yellow:C.red;
                           return(
                             <tr key={i} style={{borderBottom:i<items.length-1?`1px solid ${C.border}22`:"none",background:i%2===0?"transparent":C.card2}}>
-                              <td style={{padding:"8px 12px",fontWeight:600}}>{p.nombre}</td>
-                              <td style={{padding:"8px 12px"}}>{fmt(p.pv)}</td>
-                              <td style={{padding:"8px 12px",color:C.muted}}>{fmt(p.ct)}</td>
-                              <td style={{padding:"8px 12px",color:margen>0?C.green:C.red,fontWeight:600}}>{fmt(margen)}</td>
-                              <td style={{padding:"8px 12px"}}>
-                                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                                  <div style={{width:60,height:6,background:C.card2,borderRadius:3,overflow:"hidden"}}>
-                                    <div style={{height:"100%",width:`${Math.min(p.rent,100)}%`,background:p.rent>30?C.green:p.rent>20?C.yellow:C.red,borderRadius:3}}/>
-                                  </div>
-                                  <span style={{fontWeight:700,color:p.rent>30?C.green:p.rent>20?C.yellow:C.red}}>{p.rent}%</span>
-                                </div>
+                              <td style={{padding:"8px 10px",fontWeight:600}}>{p.n}</td>
+                              <td style={{padding:"8px 10px",color:C.muted,fontSize:11}}>{fmt(p.mp)}</td>
+                              <td style={{padding:"8px 10px",color:C.muted,fontSize:11}}>{fmt(gfu)}</td>
+                              <td style={{padding:"8px 10px",color:C.muted,fontSize:11}}>{fmt(iibb)}</td>
+                              <td style={{padding:"8px 10px",color:C.muted,fontSize:11}}>{fmt(tc)}</td>
+                              <td style={{padding:"8px 10px",fontWeight:600}}>{fmt(ct)}</td>
+                              <td style={{padding:"8px 10px"}}>{fmt(p.pv)}</td>
+                              <td style={{padding:"8px 10px"}}><span style={{fontWeight:700,color:rentC}}>{p.rent}%</span></td>
+                              <td style={{padding:"8px 10px"}}>
+                                <button onClick={()=>setFichaprod(p)}
+                                  style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.card2,color:C.muted,cursor:"pointer",whiteSpace:"nowrap"}}>
+                                  Ver receta
+                                </button>
                               </td>
-                              <td style={{padding:"8px 12px",color:C.muted}}>{p.u} uds</td>
-                              <td style={{padding:"8px 12px"}}><span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`${ac}22`,color:ac,border:`1px solid ${ac}44`,fontWeight:600}}>{accionLabel[p.accion]}</span></td>
                             </tr>
                           );
                         })}
                         <tr style={{borderTop:`1px solid ${C.border}`,background:C.card2}}>
-                          <td style={{padding:"8px 12px",fontWeight:700}}>Promedio {cat}</td>
-                          <td style={{padding:"8px 12px",fontWeight:600}}>{fmt(Math.round(items.reduce((s,p)=>s+p.pv,0)/items.length))}</td>
-                          <td style={{padding:"8px 12px",fontWeight:600,color:C.muted}}>{fmt(Math.round(items.reduce((s,p)=>s+p.ct,0)/items.length))}</td>
-                          <td style={{padding:"8px 12px",fontWeight:600,color:C.green}}>{fmt(Math.round(items.reduce((s,p)=>s+(p.pv-p.ct),0)/items.length))}</td>
-                          <td style={{padding:"8px 12px",fontWeight:700,color:catC}}>{(items.reduce((s,p)=>s+p.rent,0)/items.length).toFixed(1)}%</td>
-                          <td style={{padding:"8px 12px",color:C.muted}}>{items.reduce((s,p)=>s+p.u,0)} uds</td>
+                          <td style={{padding:"8px 10px",fontWeight:700}}>Promedio {cat}</td>
+                          <td colSpan={6}/>
+                          <td style={{padding:"8px 10px",fontWeight:700,color:catC}}>{promRent}%</td>
                           <td/>
                         </tr>
                       </tbody>
@@ -1052,57 +1204,26 @@ function VistaMacro({onSwitch}){
                 </div>
               );
             })}
-
-            {/* Combos costos */}
-            <div style={{fontSize:13,fontWeight:700,color:C.purple,marginBottom:10}}>Combos Batateros</div>
-            <div style={{background:C.card,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead>
-                  <tr style={{background:C.card2}}>
-                    {["Combo","Tipo","Precio venta","Costo total","Margen","Rent. %","Acción"].map(h=>(
-                      <th key={h} style={{textAlign:"left",padding:"8px 12px",fontSize:10,color:C.muted,fontWeight:600,borderBottom:`1px solid ${C.border}`}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMBOS.map((c,i)=>{
-                    const margen=c.pv-c.ct;
-                    const ac=accionColor[c.accion];
-                    return(
-                      <tr key={i} style={{borderBottom:i<COMBOS.length-1?`1px solid ${C.border}22`:"none",background:i%2===0?"transparent":C.card2}}>
-                        <td style={{padding:"8px 12px",fontWeight:600}}>{c.nombre}</td>
-                        <td style={{padding:"8px 12px"}}><span style={{fontSize:10,color:C.purple,fontWeight:600}}>{c.tipo}</span></td>
-                        <td style={{padding:"8px 12px"}}>{fmt(c.pv)}</td>
-                        <td style={{padding:"8px 12px",color:C.muted}}>{fmt(c.ct)}</td>
-                        <td style={{padding:"8px 12px",color:C.green,fontWeight:600}}>{fmt(margen)}</td>
-                        <td style={{padding:"8px 12px"}}><span style={{fontWeight:700,color:c.rent>20?C.green:c.rent>12?C.yellow:C.red}}>{c.rent}%</span></td>
-                        <td style={{padding:"8px 12px"}}><span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:`${ac}22`,color:ac,border:`1px solid ${ac}44`,fontWeight:600}}>{accionLabel[c.accion]}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
         )}
 
-        {/* ══ RESULTADO ══ */}
+        {/* ═══ RESULTADO ═══ */}
         {tab==="resultado"&&(
           <div>
             <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Resultado del mes</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:20}}>P&L proyectado · Mayo 2026</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:20}}>
-              <KPI label="Facturación proy."   value={fmtK(proyMes)}   color={C.green}/>
-              <KPI label="Gastos fijos"         value={fmtK(totalGF)}   color={C.red}/>
-              <KPI label="Proveedores est."     value={fmtK(provMes)}   color={C.yellow}/>
-              <KPI label="Resultado operativo"  value={fmtK(resultado)} color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
+              <KPI label="Facturación proy."  value={fmtK(proyMes)}   color={C.green}/>
+              <KPI label="Gastos fijos"        value={fmtK(totalGF)}   color={C.red}/>
+              <KPI label="Proveedores est."    value={fmtK(provMes)}   color={C.yellow}/>
+              <KPI label="Resultado operativo" value={fmtK(resultado)} color={resultado>0?C.green:C.red} borde={resultado>0?C.green:C.red}/>
             </div>
-            <div style={{background:C.card,borderRadius:12,padding:"20px",border:`1px solid ${C.border}`,marginBottom:16}}>
+            <div style={{background:C.card,borderRadius:12,padding:20,border:`1px solid ${C.border}`,marginBottom:16}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <tbody>
                   {[
                     {l:"Facturación proyectada",v:proyMes,c:C.green,signo:"+"},
-                    {l:"− Materia prima / Proveedores",v:provMes,c:C.red,signo:"-",pct:(provMes/proyMes*100).toFixed(1)},
+                    {l:"− Proveedores",v:provMes,c:C.red,signo:"-",pct:(provMes/proyMes*100).toFixed(1)},
                     {l:"− Gastos fijos",v:totalGF,c:C.red,signo:"-",pct:(totalGF/proyMes*100).toFixed(1)},
                   ].map((r,i)=>(
                     <tr key={i} style={{borderBottom:`1px solid ${C.border}22`}}>
@@ -1113,7 +1234,7 @@ function VistaMacro({onSwitch}){
                   ))}
                   <tr style={{borderTop:`1px solid ${C.border}`}}>
                     <td style={{padding:"10px 0",fontWeight:700,fontSize:14}}>Resultado operativo</td>
-                    <td style={{padding:"10px 0",textAlign:"right",fontWeight:700,fontSize:16,color:resultado>0?C.green:C.red}}>{resultado>0?"+":"-"}{fmt(resultado)}</td>
+                    <td style={{padding:"10px 0",textAlign:"right",fontWeight:700,fontSize:16,color:resultado>0?C.green:C.red}}>{resultado>0?"+":""}{fmt(resultado)}</td>
                     <td style={{padding:"10px 0",textAlign:"right",fontSize:11,color:resultado>0?C.green:C.red}}>{(resultado/proyMes*100).toFixed(1)}%</td>
                   </tr>
                   <tr>
@@ -1140,7 +1261,7 @@ function VistaMacro({onSwitch}){
           </div>
         )}
 
-        {/* ══ CONFIG ══ */}
+        {/* ═══ CONFIG ═══ */}
         {tab==="config"&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
@@ -1149,14 +1270,10 @@ function VistaMacro({onSwitch}){
                 <div style={{fontSize:11,color:C.muted,marginTop:2}}>Gastos fijos · actualizar mes a mes</div>
               </div>
               <button onClick={()=>setEditGF(!editGF)} style={{padding:"7px 16px",fontSize:11,borderRadius:6,border:`1px solid ${editGF?C.accent:C.border}`,background:editGF?C.accentDim:C.card,color:editGF?C.accent:C.muted,cursor:"pointer",fontWeight:600}}>
-                {editGF?"✓ Guardar cambios":"✏️ Editar gastos fijos"}
+                {editGF?"✓ Guardar":"✏️ Editar"}
               </button>
             </div>
-            {editGF&&(
-              <div style={{background:C.yellowDim,border:`1px solid ${C.yellow}44`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:11,color:C.yellow}}>
-                💡 Tocá el monto de cualquier ítem para actualizarlo. Afecta el resultado en tiempo real.
-              </div>
-            )}
+            {editGF&&<div style={{background:C.yellowDim,border:`1px solid ${C.yellow}44`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:11,color:C.yellow}}>💡 Tocá el monto para actualizarlo. Afecta el resultado en tiempo real.</div>}
             <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${C.border}`,marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:10,color:C.muted,marginBottom:2}}>TOTAL GASTOS FIJOS</div>
@@ -1174,7 +1291,7 @@ function VistaMacro({onSwitch}){
               const col=cols[cat];
               return(
                 <div key={cat} style={{marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                     <span style={{fontWeight:700,color:col,fontSize:12}}>{cat}</span>
                     <span style={{fontSize:11,color:C.muted}}>{fmt(total)}</span>
                   </div>
@@ -1204,7 +1321,6 @@ function VistaMacro({onSwitch}){
   );
 }
 
-// ── ROOT ──────────────────────────────────────────────────────────
 export default function App(){
   const [vista,setVista]=useState(null);
   if(!vista) return <Login onLogin={v=>setVista(v)}/>;
