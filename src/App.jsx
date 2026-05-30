@@ -78,50 +78,329 @@ const RANKING = [
   {n:"Sandwich Bondio",   u:5,  cat:"Cocina",    rent:25.0,pv:19000,mp:8500,accion:"revisar"},
 ];
 
-// ── RECETAS ──────────────────────────────────────────────────────
+// ── RECETAS — precios reales de planillas de costos ─────────────
+// Formato: {ing, gr (cantidad), pu (precio por gr/ml/u), u (unidad)}
+// Café: dosis base 9gr + 19.5% merma. Leche: precio de Serenísima con 10% merma.
+// Vaso take away: $162.61 por unidad (verificado contra planilla CAFÉ.)
 const RECETAS = {
-  "Espresso":         [{ing:"Café",gr:21.5,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
-  "Espresso largo":   [{ing:"Café",gr:21.5,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
-  "Espresso doble":   [{ing:"Café",gr:43,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
-  "Cortado":          [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:110,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Cappuccino":       [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:154,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Flat White":       [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:165,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Cappu Doble":      [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Latte":            [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:220,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Americano":        [{ing:"Café",gr:43,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
-  "Americano Especiado":[{ing:"Café",gr:43,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
-  "Choco Caliente":   [{ing:"Chocolate amargo",gr:30,pu:26.3},{ing:"Leche entera",gr:154,pu:1.2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Dame Números":     [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"Chocolate amargo",gr:30,pu:26.3},{ing:"Azúcar común",gr:16,pu:1.96},{ing:"Vaso take away",gr:1,pu:350}],
-  "Cappusotto":       [{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"Pasta de maní",gr:20,pu:8},{ing:"Choco blanco",gr:10,pu:26.5},{ing:"Vaso take away",gr:1,pu:350}],
-  "Cappu Marplatense":[{ing:"Café",gr:43,pu:39},{ing:"Leche entera",gr:198,pu:1.2},{ing:"DDL Vacalin",gr:25,pu:4},{ing:"Pasta de maní",gr:15,pu:8},{ing:"Vaso take away",gr:1,pu:350}],
-  "Suaave":           [{ing:"Café",gr:21.5,pu:39},{ing:"Leche entera",gr:220,pu:1.2},{ing:"Azúcar común",gr:20,pu:1.96},{ing:"Vaso take away",gr:1,pu:350}],
-  "Pomelada":         [{ing:"Pomelo",gr:150,pu:3},{ing:"Miel",gr:10,pu:16},{ing:"Vaso take away",gr:1,pu:350}],
-  "Mandarinada":      [{ing:"Mandarina",gr:120,pu:2.5},{ing:"Limón",gr:30,pu:3.5},{ing:"Vaso take away",gr:1,pu:350}],
-  "Jugo de Naranja":  [{ing:"Naranja",gr:200,pu:2},{ing:"Vaso take away",gr:1,pu:350}],
-  "Filtrados":        [{ing:"Café",gr:64,pu:39},{ing:"Vaso take away",gr:1,pu:350}],
-  "Té Woolong":       [{ing:"Té Woolong",gr:5,pu:100},{ing:"Vaso take away",gr:1,pu:350}],
-  "Cookie Chocolate": [{ing:"Chocolate amargo",gr:24,pu:26.3},{ing:"Manteca",gr:12,pu:13.3},{ing:"Cacao amargo",gr:5,pu:73.7},{ing:"Azúcar común",gr:16,pu:1.96},{ing:"Huevos",gr:0.21,pu:250},{ing:"Harina 0000",gr:11,pu:1.49}],
-  "Cookie Frambuesa": [{ing:"Harina 0000",gr:33,pu:1.49},{ing:"Manteca",gr:13,pu:13.3},{ing:"Azúcar común",gr:24,pu:1.96},{ing:"Huevos",gr:0.13,pu:250},{ing:"Frambuesas",gr:6,pu:22},{ing:"Choco blanco",gr:7,pu:26.5}],
-  "Cookie Pistacho":  [{ing:"Harina 0000",gr:31,pu:1.49},{ing:"Manteca",gr:13,pu:13.3},{ing:"Azúcar común",gr:25,pu:1.96},{ing:"Huevos",gr:0.13,pu:250},{ing:"Pistachos",gr:9,pu:75},{ing:"Naranja",gr:8,pu:2}],
-  "Alfajor Almendras":[{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.15,pu:250},{ing:"Harina 0000",gr:19,pu:1.49},{ing:"Almendras",gr:4,pu:19.2},{ing:"DDL Vacalin",gr:40,pu:4}],
-  "Alfajor Tita":     [{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.07,pu:250},{ing:"Harina 0000",gr:17,pu:1.49},{ing:"Chocolate amargo",gr:11,pu:26.3}],
-  "Alfanuí":          [{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.07,pu:250},{ing:"Harina 0000",gr:17,pu:1.49},{ing:"DDL Vacalin",gr:40,pu:4}],
-  "Alfajor Nevado":   [{ing:"Manteca",gr:11,pu:13.3},{ing:"Azúcar impalpable",gr:9,pu:4},{ing:"Huevos",gr:0.07,pu:250},{ing:"Harina 0000",gr:17,pu:1.49},{ing:"Almendras",gr:1.5,pu:19.2},{ing:"Chocolate amargo",gr:11,pu:26.3}],
-  "Budín Limón":      [{ing:"Manteca",gr:28,pu:13.3},{ing:"Azúcar común",gr:38,pu:1.96},{ing:"Huevos",gr:0.5,pu:250},{ing:"Harina 0000",gr:42,pu:1.49},{ing:"Limón",gr:25,pu:3.5},{ing:"Semillas amapola",gr:1,pu:3.86}],
-  "Budín Banana":     [{ing:"Manteca",gr:28,pu:13.3},{ing:"Azúcar común",gr:38,pu:1.96},{ing:"Huevos",gr:0.5,pu:250},{ing:"Harina 0000",gr:42,pu:1.49},{ing:"Banana",gr:40,pu:4}],
-  "Chipa":            [{ing:"Fécula mandioca",gr:50,pu:1.8},{ing:"Queso Atuel",gr:25,pu:21.6},{ing:"Huevos",gr:0.08,pu:250},{ing:"Manteca",gr:5,pu:13.3},{ing:"Sal",gr:0.5,pu:3.7}],
-  "Tostón de Palta":  [{ing:"Pan masa madre",gr:1,pu:3400},{ing:"Queso crema",gr:40,pu:5.7},{ing:"Palta",gr:80,pu:8000},{ing:"Tomate cherry",gr:30,pu:8000},{ing:"Aceite de oliva",gr:10,pu:16}],
-  "Tostón de Perso":  [{ing:"Pan masa madre",gr:1,pu:3400},{ing:"Queso crema",gr:40,pu:5.7},{ing:"Tomate cherry",gr:40,pu:8000}],
-  "Tostado JyQ":      [{ing:"Pan molde",gr:2,pu:3400},{ing:"Lomito ahumado",gr:60,pu:18.2},{ing:"Queso Gouda",gr:40,pu:19.6}],
-  "Tostado Capresse": [{ing:"Pan molde",gr:2,pu:3400},{ing:"Tomate perita",gr:60,pu:4},{ing:"Queso Reggianito",gr:40,pu:14.7}],
-  "Tostadas":         [{ing:"Pan molde",gr:2,pu:3400},{ing:"Queso Gouda",gr:30,pu:19.6}],
-  "Sandwich Mortadela":[{ing:"Pan masa madre",gr:1,pu:3400},{ing:"Mortadela pistachos",gr:80,pu:18.2},{ing:"Queso Gouda",gr:40,pu:19.6},{ing:"Tomate perita",gr:40,pu:4},{ing:"Pesto",gr:20,pu:10.1}],
-  "Chipa prensado":   [{ing:"Fécula mandioca",gr:67,pu:1.8},{ing:"Queso Atuel",gr:33,pu:21.6},{ing:"Lomito ahumado",gr:40,pu:18.2}],
-  "Medialuna rellena":[{ing:"Medialuna",gr:1,pu:1900},{ing:"Queso Gouda",gr:30,pu:19.6},{ing:"Lomito ahumado",gr:40,pu:18.2}],
-  "Yogurt":           [{ing:"Yogurt griego",gr:180,pu:3},{ing:"Miel",gr:15,pu:16}],
+  // ── CAFÉ ──────────────────────────────────────────────────────
+  "Espresso": [
+    {ing:"Café (dosis 9gr)",     gr:9,    pu:39.0,    u:"gr",  subtotal:351},
+    {ing:"Merma café (19.5%)",   gr:1.755,pu:39.0,    u:"gr",  subtotal:68.45},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Espresso largo": [
+    {ing:"Café (dosis 9gr)",     gr:9,    pu:39.0,    u:"gr",  subtotal:351},
+    {ing:"Merma café (19.5%)",   gr:1.755,pu:39.0,    u:"gr",  subtotal:68.45},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Espresso doble": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Cortado": [
+    {ing:"Café (dosis 9gr)",     gr:9,    pu:39.0,    u:"gr",  subtotal:351},
+    {ing:"Merma café (19.5%)",   gr:1.755,pu:39.0,    u:"gr",  subtotal:68.45},
+    {ing:"Leche entera (100ml)", gr:100,  pu:1.31629, u:"ml",  subtotal:131.63},
+    {ing:"Merma leche (10%)",    gr:10,   pu:1.31629, u:"ml",  subtotal:13.16},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Cappuccino": [
+    {ing:"Café (dosis 9gr)",     gr:9,    pu:39.0,    u:"gr",  subtotal:351},
+    {ing:"Merma café (19.5%)",   gr:1.755,pu:39.0,    u:"gr",  subtotal:68.45},
+    {ing:"Leche entera (140ml)", gr:140,  pu:1.31629, u:"ml",  subtotal:184.28},
+    {ing:"Merma leche (10%)",    gr:14,   pu:1.31629, u:"ml",  subtotal:18.43},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Flat White": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Leche entera (150ml)", gr:150,  pu:1.31629, u:"ml",  subtotal:197.44},
+    {ing:"Merma leche (7.5%)",   gr:11.25,pu:1.31629, u:"ml",  subtotal:14.81},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Cappu Doble": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Leche entera (180ml)", gr:180,  pu:1.31629, u:"ml",  subtotal:237.03},
+    {ing:"Merma leche (7.5%)",   gr:13.5, pu:1.31629, u:"ml",  subtotal:17.77},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Latte": [
+    {ing:"Café (dosis 9gr)",     gr:9,    pu:39.0,    u:"gr",  subtotal:351},
+    {ing:"Merma café (19.5%)",   gr:1.755,pu:39.0,    u:"gr",  subtotal:68.45},
+    {ing:"Leche entera (200ml)", gr:200,  pu:1.31629, u:"ml",  subtotal:263.26},
+    {ing:"Merma leche (7.5%)",   gr:15,   pu:1.31629, u:"ml",  subtotal:19.74},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Americano": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Americano Especiado": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Pimienta rosa",        gr:1,    pu:36.0,    u:"gr",  subtotal:36},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Choco Caliente": [
+    {ing:"Chocolate amargo",     gr:30,   pu:26.265,  u:"gr",  subtotal:787.95},
+    {ing:"Batata horneada",      gr:20,   pu:2.1,     u:"gr",  subtotal:42},
+    {ing:"Leche entera (140ml)", gr:140,  pu:1.31629, u:"ml",  subtotal:184.28},
+    {ing:"Merma leche (10%)",    gr:14,   pu:1.31629, u:"ml",  subtotal:18.43},
+    {ing:"Cardamomo",            gr:0.5,  pu:36.0,    u:"gr",  subtotal:18},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Dame Números": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Leche entera (180ml)", gr:180,  pu:1.31629, u:"ml",  subtotal:237.03},
+    {ing:"Merma leche (7.5%)",   gr:13.5, pu:1.31629, u:"ml",  subtotal:17.77},
+    {ing:"Batata horneada (25gr)",gr:25,  pu:2.1,     u:"gr",  subtotal:52.5},
+    {ing:"Chocolate amargo",     gr:6,    pu:26.265,  u:"gr",  subtotal:157.59},
+    {ing:"Cardamomo",            gr:0.5,  pu:36.0,    u:"gr",  subtotal:18},
+    {ing:"Azúcar común",         gr:16,   pu:1.9584,  u:"gr",  subtotal:31.33},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Cappusotto": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Leche entera (180ml)", gr:180,  pu:1.31629, u:"ml",  subtotal:237.03},
+    {ing:"Merma leche (7.5%)",   gr:13.5, pu:1.31629, u:"ml",  subtotal:17.77},
+    {ing:"Pasta de maní",        gr:20,   pu:8.0,     u:"gr",  subtotal:160},
+    {ing:"Chocolate blanco",     gr:10,   pu:26.487,  u:"gr",  subtotal:264.87},
+    {ing:"Ralladura naranja",    gr:3,    pu:2.0,     u:"gr",  subtotal:6},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Cappu Marplatense": [
+    {ing:"Café (dosis 18gr)",    gr:18,   pu:39.0,    u:"gr",  subtotal:702},
+    {ing:"Merma café (19.5%)",   gr:3.51, pu:39.0,    u:"gr",  subtotal:136.89},
+    {ing:"Leche entera (180ml)", gr:180,  pu:1.31629, u:"ml",  subtotal:237.03},
+    {ing:"Merma leche (7.5%)",   gr:13.5, pu:1.31629, u:"ml",  subtotal:17.77},
+    {ing:"DDL Vacalin",          gr:25,   pu:4.00752, u:"gr",  subtotal:100.19},
+    {ing:"Pasta de maní",        gr:15,   pu:8.0,     u:"gr",  subtotal:120},
+    {ing:"Sal marina",           gr:0.3,  pu:3.7321,  u:"gr",  subtotal:1.12},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Suaave": [
+    {ing:"Café (dosis 9gr)",     gr:9,    pu:39.0,    u:"gr",  subtotal:351},
+    {ing:"Merma café (19.5%)",   gr:1.755,pu:39.0,    u:"gr",  subtotal:68.45},
+    {ing:"Leche entera (200ml)", gr:200,  pu:1.31629, u:"ml",  subtotal:263.26},
+    {ing:"Merma leche (7.5%)",   gr:15,   pu:1.31629, u:"ml",  subtotal:19.74},
+    {ing:"Almíbar lavanda",      gr:30,   pu:4.0,     u:"gr",  subtotal:120},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Pomelada": [
+    {ing:"Pomelo (jugo)",        gr:150,  pu:3.0,     u:"gr",  subtotal:450},
+    {ing:"Miel",                 gr:10,   pu:16.0,    u:"gr",  subtotal:160},
+    {ing:"Jengibre",             gr:3,    pu:36.0,    u:"gr",  subtotal:108},
+    {ing:"Pimienta rosa",        gr:0.5,  pu:36.0,    u:"gr",  subtotal:18},
+    {ing:"Almíbar manzanilla",   gr:7,    pu:4.0,     u:"gr",  subtotal:28},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Mandarinada": [
+    {ing:"Mandarina (jugo)",     gr:120,  pu:2.5,     u:"gr",  subtotal:300},
+    {ing:"Limón (jugo)",         gr:30,   pu:3.5,     u:"gr",  subtotal:105},
+    {ing:"Cardamomo",            gr:0.5,  pu:36.0,    u:"gr",  subtotal:18},
+    {ing:"Almíbar banana",       gr:20,   pu:4.0,     u:"gr",  subtotal:80},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Jugo de Naranja": [
+    {ing:"Naranja (jugo ~550gr)",gr:550,  pu:2.0,     u:"gr",  subtotal:1100},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Filtrados": [
+    {ing:"Café (dosis 27gr)",    gr:27,   pu:39.0,    u:"gr",  subtotal:1053},
+    {ing:"Merma café (19.5%)",   gr:5.265,pu:39.0,    u:"gr",  subtotal:205.34},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+  "Té Woolong": [
+    {ing:"Té Woolong",           gr:5,    pu:336.0,   u:"gr",  subtotal:1680},
+    {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
+  ],
+
+  // ── PASTELERÍA — costos POR UNIDAD (receta dividida por porciones) ──
+  // Cookie Chocolate: receta 48829 / 38 unidades = 1284.98 c/u
+  "Cookie Chocolate": [
+    {ing:"Chocolate amargo (920gr÷38)",gr:24.2,pu:26.265,u:"gr",subtotal:636.02},
+    {ing:"Manteca (440gr÷38)",         gr:11.6,pu:13.285,u:"gr",subtotal:153.97},
+    {ing:"Cacao amargo (200gr÷38)",    gr:5.3, pu:73.735,u:"gr",subtotal:390.58},
+    {ing:"Azúcar común (600gr÷38)",    gr:15.8,pu:1.9584,u:"gr",subtotal:30.92},
+    {ing:"Huevos (8u÷38)",             gr:0.21,pu:250.0, u:"u", subtotal:52.63},
+    {ing:"Esencia vainilla (8gr÷38)",  gr:0.21,pu:16.698,u:"gr",subtotal:3.52},
+    {ing:"Polvo hornear (20gr÷38)",    gr:0.53,pu:6.9143,u:"gr",subtotal:3.64},
+    {ing:"Harina 0000 (400gr÷38)",     gr:10.5,pu:1.4907,u:"gr",subtotal:15.66},
+    {ing:"Sal (8gr÷38)",               gr:0.21,pu:3.7321,u:"gr",subtotal:0.78},
+  ],
+  // Cookie Frambuesa: receta 18840 / 30 unidades = 628.02 c/u
+  "Cookie Frambuesa": [
+    {ing:"Harina 0000 (1000gr÷30)",    gr:33.3,pu:1.4907,u:"gr",subtotal:49.64},
+    {ing:"Manteca (400gr÷30)",         gr:13.3,pu:13.285,u:"gr",subtotal:176.69},
+    {ing:"Azúcar común (350gr÷30)",    gr:11.7,pu:1.9584,u:"gr",subtotal:22.91},
+    {ing:"Azúcar rubia (350gr÷30)",    gr:11.7,pu:2.1191,u:"gr",subtotal:24.79},
+    {ing:"Huevos (4u÷30)",             gr:0.13,pu:250.0, u:"u", subtotal:33.33},
+    {ing:"Esencia vainilla (10gr÷30)", gr:0.33,pu:16.698,u:"gr",subtotal:5.58},
+    {ing:"Polvo hornear (20gr÷30)",    gr:0.67,pu:6.9143,u:"gr",subtotal:4.60},
+    {ing:"Bicarbonato (12gr÷30)",      gr:0.4, pu:6.7911,u:"gr",subtotal:2.72},
+    {ing:"Sal (20gr÷30)",              gr:0.67,pu:3.7321,u:"gr",subtotal:2.49},
+    {ing:"Frambuesas (175gr÷30)",      gr:5.8, pu:22.0,  u:"gr",subtotal:128.33},
+    {ing:"Chocolate blanco (200gr÷30)",gr:6.7, pu:26.487,u:"gr",subtotal:176.46},
+  ],
+  // Cookie Pistacho: receta 30776 / 30 = 1025.87 c/u
+  "Cookie Pistacho": [
+    {ing:"Harina 0000 (920gr÷30)",     gr:30.7,pu:1.4907,u:"gr",subtotal:45.71},
+    {ing:"Manteca (400gr÷30)",         gr:13.3,pu:13.285,u:"gr",subtotal:176.69},
+    {ing:"Azúcar común (370gr÷30)",    gr:12.3,pu:1.9584,u:"gr",subtotal:24.19},
+    {ing:"Azúcar rubia (370gr÷30)",    gr:12.3,pu:2.1191,u:"gr",subtotal:26.14},
+    {ing:"Huevos (4u÷30)",             gr:0.13,pu:250.0, u:"u", subtotal:33.33},
+    {ing:"Esencia vainilla (10gr÷30)", gr:0.33,pu:16.698,u:"gr",subtotal:5.58},
+    {ing:"Polvo hornear (20gr÷30)",    gr:0.67,pu:6.9143,u:"gr",subtotal:4.60},
+    {ing:"Bicarbonato (12gr÷30)",      gr:0.4, pu:6.7911,u:"gr",subtotal:2.72},
+    {ing:"Sal (20gr÷30)",              gr:0.67,pu:3.7321,u:"gr",subtotal:2.49},
+    {ing:"Pistachos (275gr÷30)",       gr:9.2, pu:74.983,u:"gr",subtotal:688.44},
+    {ing:"Naranja ralladura (250gr÷30)",gr:8.3,pu:2.0,   u:"gr",subtotal:16.67},
+  ],
+  // Alfajor Almendras: masa 9116/27=337.6 + DDL 160.3 = 497.93
+  "Alfajor Almendras": [
+    {ing:"Manteca (300gr÷27)",         gr:11.1,pu:13.285,u:"gr",subtotal:147.60},
+    {ing:"Azúcar impalpable (250gr÷27)",gr:9.3,pu:4.0225,u:"gr",subtotal:37.27},
+    {ing:"Huevos (4u÷27)",             gr:0.15,pu:250.0, u:"u", subtotal:37.04},
+    {ing:"Harina 0000 (500gr÷27)",     gr:18.5,pu:1.4907,u:"gr",subtotal:27.68},
+    {ing:"Almendras (120gr÷27)",       gr:4.4, pu:19.2,  u:"gr",subtotal:85.33},
+    {ing:"Esencia vainilla (2gr÷27)",  gr:0.07,pu:16.698,u:"gr",subtotal:1.24},
+    {ing:"Polvo hornear (5gr÷27)",     gr:0.19,pu:6.9143,u:"gr",subtotal:1.29},
+    {ing:"Sal (2gr÷27)",               gr:0.07,pu:3.7321,u:"gr",subtotal:0.28},
+    {ing:"DDL Vacalin (40gr relleno)", gr:40.0,pu:4.00752,u:"gr",subtotal:160.30},
+  ],
+  // Alfanuí: similar structure con DDL
+  "Alfanuí": [
+    {ing:"Manteca (320gr÷27)",         gr:11.9,pu:13.285,u:"gr",subtotal:158.05},
+    {ing:"Azúcar impalpable (200gr÷27)",gr:7.4,pu:4.0225,u:"gr",subtotal:29.77},
+    {ing:"Huevos (2u÷27)",             gr:0.07,pu:250.0, u:"u", subtotal:18.52},
+    {ing:"Harina 0000 (500gr÷27)",     gr:18.5,pu:1.4907,u:"gr",subtotal:27.68},
+    {ing:"Sal (2gr÷27)",               gr:0.07,pu:3.7321,u:"gr",subtotal:0.28},
+    {ing:"Cacao amargo (60gr÷27)",     gr:2.2, pu:73.735,u:"gr",subtotal:162.22},
+    {ing:"Almendras (40gr÷27)",        gr:1.5, pu:19.2,  u:"gr",subtotal:28.44},
+    {ing:"Esencia vainilla (2gr÷27)",  gr:0.07,pu:16.698,u:"gr",subtotal:1.24},
+    {ing:"DDL Vacalin (200gr relleno)",gr:200.0,pu:4.00752,u:"gr",subtotal:801.50},
+  ],
+  "Alfajor Nevado": [
+    {ing:"Manteca (300gr÷27)",         gr:11.1,pu:13.285,u:"gr",subtotal:147.60},
+    {ing:"Azúcar impalpable (200gr÷27)",gr:7.4,pu:4.0225,u:"gr",subtotal:29.77},
+    {ing:"Huevos (2u÷27)",             gr:0.07,pu:250.0, u:"u", subtotal:18.52},
+    {ing:"Harina 0000 (500gr÷27)",     gr:18.5,pu:1.4907,u:"gr",subtotal:27.68},
+    {ing:"Almendras (40gr÷27)",        gr:1.5, pu:19.2,  u:"gr",subtotal:28.44},
+    {ing:"Esencia vainilla (2gr÷27)",  gr:0.07,pu:16.698,u:"gr",subtotal:1.24},
+    {ing:"DDL Vacalin (6gr÷27)",       gr:0.22,pu:4.00752,u:"gr",subtotal:0.89},
+    {ing:"Baño choco amargo (90gr÷27)",gr:3.3, pu:26.265,u:"gr",subtotal:87.27},
+  ],
+  "Alfajor Tita": [
+    {ing:"Manteca (300gr÷27)",         gr:11.1,pu:13.285,u:"gr",subtotal:147.60},
+    {ing:"Azúcar impalpable (200gr÷27)",gr:7.4,pu:4.0225,u:"gr",subtotal:29.77},
+    {ing:"Huevos (2u÷27)",             gr:0.07,pu:250.0, u:"u", subtotal:18.52},
+    {ing:"Harina 0000 (500gr÷27)",     gr:18.5,pu:1.4907,u:"gr",subtotal:27.68},
+    {ing:"Sal (2gr÷27)",               gr:0.07,pu:3.7321,u:"gr",subtotal:0.28},
+    {ing:"Baño choco amargo (90gr÷27)",gr:3.3, pu:26.265,u:"gr",subtotal:87.27},
+    {ing:"Esencia vainilla (2gr÷27)",  gr:0.07,pu:16.698,u:"gr",subtotal:1.24},
+  ],
+  // Budin Limon: receta 8620.72 / 8 porciones = 1077.59
+  "Budín Limón": [
+    {ing:"Manteca (300gr÷8)",          gr:37.5,pu:13.285,u:"gr",subtotal:498.19},
+    {ing:"Azúcar común (300gr÷8)",     gr:37.5,pu:1.9584,u:"gr",subtotal:73.44},
+    {ing:"Huevos (6u÷8)",              gr:0.75,pu:250.0, u:"u", subtotal:187.50},
+    {ing:"Harina 0000 (360gr÷8)",      gr:45.0,pu:1.4907,u:"gr",subtotal:67.08},
+    {ing:"Sal (4gr÷8)",                gr:0.5, pu:3.7321,u:"gr",subtotal:1.87},
+    {ing:"Polvo hornear (16gr÷8)",     gr:2.0, pu:6.9143,u:"gr",subtotal:13.83},
+    {ing:"Limón (300gr÷8)",            gr:37.5,pu:3.5,   u:"gr",subtotal:131.25},
+    {ing:"Semillas amapola (8gr÷8)",   gr:1.0, pu:3.8587,u:"gr",subtotal:3.86},
+    {ing:"Azúcar impalpable (200gr÷8)",gr:25.0,pu:4.0225,u:"gr",subtotal:100.56},
+  ],
+  // Budin Banana: receta 8195.23 / 8 porciones = 1024.40
+  "Budín Banana": [
+    {ing:"Manteca (200gr÷8)",          gr:25.0,pu:13.285,u:"gr",subtotal:332.13},
+    {ing:"Azúcar común (340gr÷8)",     gr:42.5,pu:1.9584,u:"gr",subtotal:83.23},
+    {ing:"Huevos (3u÷8)",              gr:0.38,pu:250.0, u:"u", subtotal:93.75},
+    {ing:"Harina 0000 (360gr÷8)",      gr:45.0,pu:1.4907,u:"gr",subtotal:67.08},
+    {ing:"Sal (3gr÷8)",                gr:0.38,pu:3.7321,u:"gr",subtotal:1.40},
+    {ing:"Bicarbonato (5gr÷8)",        gr:0.63,pu:6.7911,u:"gr",subtotal:4.24},
+    {ing:"Esencia vainilla (5gr÷8)",   gr:0.63,pu:16.698,u:"gr",subtotal:10.44},
+    {ing:"Nueces (130gr÷8)",           gr:16.3,pu:14.9,  u:"gr",subtotal:241.75},
+    {ing:"Banana (380gr÷8)",           gr:47.5,pu:4.0,   u:"gr",subtotal:190.00},
+  ],
+  // Chipa: receta 25180.99 / 30 porciones = 839.37
+  "Chipa": [
+    {ing:"Fécula mandioca (1020gr÷30)",gr:34.0,pu:2.2050,u:"gr",subtotal:74.97},
+    {ing:"Sal (400gr÷30)",             gr:13.3,pu:3.7321,u:"gr",subtotal:49.69},
+    {ing:"Polvo hornear (36gr÷30)",    gr:1.2, pu:6.9143,u:"gr",subtotal:8.30},
+    {ing:"Leche entera (360ml÷30)",    gr:12.0,pu:1.31629,u:"ml",subtotal:15.80},
+    {ing:"Huevos (6u÷30)",             gr:0.2, pu:250.0, u:"u", subtotal:50.00},
+    {ing:"Manteca (120gr÷30)",         gr:4.0, pu:13.285,u:"gr",subtotal:53.14},
+    {ing:"Queso Gouda (510gr÷30)",     gr:17.0,pu:19.643,u:"gr",subtotal:333.93},
+    {ing:"Queso Reggianito (260gr÷30)",gr:8.7, pu:14.665,u:"gr",subtotal:127.58},
+    {ing:"Queso Provolone (250gr÷30)", gr:8.3, pu:15.413,u:"gr",subtotal:128.23},
+  ],
+
+  // ── COCINA ────────────────────────────────────────────────────
+  "Tostón de Palta": [
+    {ing:"Pan masa madre",       gr:1,    pu:3400.0,  u:"u",  subtotal:3400},
+    {ing:"Queso crema",          gr:40,   pu:7.5148,  u:"gr", subtotal:300.59},
+    {ing:"Palta",                gr:80,   pu:8.0,     u:"gr", subtotal:640},
+    {ing:"Tomate cherry",        gr:30,   pu:8.0,     u:"gr", subtotal:240},
+    {ing:"Aceite de oliva",      gr:10,   pu:18.5,    u:"gr", subtotal:185},
+    {ing:"Sal y sésamo",         gr:3,    pu:3.7321,  u:"gr", subtotal:11.20},
+  ],
+  "Tostón de Perso": [
+    {ing:"Pan masa madre",       gr:1,    pu:3400.0,  u:"u",  subtotal:3400},
+    {ing:"Queso crema",          gr:40,   pu:7.5148,  u:"gr", subtotal:300.59},
+    {ing:"Tomate cherry",        gr:40,   pu:8.0,     u:"gr", subtotal:320},
+    {ing:"Granola",              gr:20,   pu:24.595,  u:"gr", subtotal:491.90},
+    {ing:"Aceite de oliva",      gr:8,    pu:18.5,    u:"gr", subtotal:148},
+  ],
+  "Tostado JyQ": [
+    {ing:"Pan molde (2 fetas)",  gr:2,    pu:3400.0,  u:"u",  subtotal:6800},
+    {ing:"Lomito ahumado",       gr:60,   pu:18.2,    u:"gr", subtotal:1092},
+    {ing:"Queso Gouda",          gr:40,   pu:19.643,  u:"gr", subtotal:785.73},
+  ],
+  "Tostado Capresse": [
+    {ing:"Pan molde (2 fetas)",  gr:2,    pu:3400.0,  u:"u",  subtotal:6800},
+    {ing:"Tomate perita",        gr:60,   pu:4.0,     u:"gr", subtotal:240},
+    {ing:"Queso Reggianito",     gr:40,   pu:14.665,  u:"gr", subtotal:586.61},
+    {ing:"Albahaca",             gr:0.15, pu:1500.0,  u:"u",  subtotal:225},
+    {ing:"Aceite de oliva",      gr:8,    pu:18.5,    u:"gr", subtotal:148},
+  ],
+  "Tostadas": [
+    {ing:"Pan molde (2 fetas)",  gr:2,    pu:3400.0,  u:"u",  subtotal:6800},
+    {ing:"Queso Gouda",          gr:30,   pu:19.643,  u:"gr", subtotal:589.30},
+    {ing:"Mermelada casera",     gr:20,   pu:5.0,     u:"gr", subtotal:100},
+  ],
+  "Sandwich Mortadela": [
+    {ing:"Pan masa madre",       gr:1,    pu:3400.0,  u:"u",  subtotal:3400},
+    {ing:"Mortadela pistachos",  gr:80,   pu:18.2,    u:"gr", subtotal:1456},
+    {ing:"Queso Gouda",          gr:40,   pu:19.643,  u:"gr", subtotal:785.73},
+    {ing:"Tomate perita",        gr:40,   pu:4.0,     u:"gr", subtotal:160},
+    {ing:"Pesto Divina Oliva",   gr:20,   pu:10.1,    u:"gr", subtotal:202},
+  ],
+  "Chipa prensado": [
+    {ing:"Chipa (base cocida)",  gr:120,  pu:6.99,    u:"gr", subtotal:839},
+    {ing:"Lomito ahumado",       gr:40,   pu:18.2,    u:"gr", subtotal:728},
+    {ing:"Queso Gouda",          gr:30,   pu:19.643,  u:"gr", subtotal:589.30},
+  ],
+  "Medialuna rellena": [
+    {ing:"Medialuna",            gr:1,    pu:1900.0,  u:"u",  subtotal:1900},
+    {ing:"Lomito ahumado",       gr:40,   pu:18.2,    u:"gr", subtotal:728},
+    {ing:"Queso Gouda",          gr:30,   pu:19.643,  u:"gr", subtotal:589.30},
+  ],
+  "Yogurt": [
+    {ing:"Yogurt griego",        gr:180,  pu:10.833,  u:"gr", subtotal:1950},
+    {ing:"Granola casera",       gr:30,   pu:24.595,  u:"gr", subtotal:737.85},
+    {ing:"Miel",                 gr:15,   pu:16.0,    u:"gr", subtotal:240},
+    {ing:"Fruta de estación",    gr:60,   pu:6.0,     u:"gr", subtotal:360},
+  ],
 };
 
-// ── GASTOS FIJOS ─────────────────────────────────────────────────
+// ── GASTOS FIJOS// ── GASTOS FIJOS ─────────────────────────────────────────────────
 const GF_INIT = [
   {id:1, concepto:"Sueldos emp. blanco",  monto:1718776,cat:"Personal",  icon:"👥"},
   {id:2, concepto:"Sueldos emp. negro",   monto:1088000,cat:"Personal",  icon:"👥"},
@@ -306,7 +585,7 @@ function FichaCosto({prod,totalGF,onClose}){
   const receta=RECETAS[prod.n]||[];
   const [editando,setEditando]=useState(false);
   const [ingrs,setIngrs]=useState(receta.map(r=>({...r})));
-  const mpCalc=ingrs.reduce((s,r)=>s+(r.gr*r.pu/1000),0);
+  const mpCalc=ingrs.reduce((s,r)=>s+(r.subtotal||r.gr*r.pu/1000),0);
   const gfu=prod.pv*totalGF/FACT_BASE;
   const iibb=prod.pv*0.015;
   const tc=prod.pv*0.0501;
@@ -386,7 +665,7 @@ function FichaCosto({prod,totalGF,onClose}){
                       }
                     </td>
                     <td style={{padding:"7px 10px",textAlign:"right",color:C.muted,fontSize:11}}>{fmt(r.pu)}/kg</td>
-                    <td style={{padding:"7px 10px",textAlign:"right",fontWeight:600}}>{fmt(r.gr*r.pu/1000)}</td>
+                    <td style={{padding:"7px 10px",textAlign:"right",fontWeight:600}}>{fmt(r.subtotal||r.gr*r.pu/1000)}</td>
                   </tr>
                 ))}
                 <tr style={{borderTop:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
