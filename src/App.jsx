@@ -272,6 +272,208 @@ function varPct(actual, ref){
   return { txt:`${p>0?"↑":"↓"}${abs.toFixed(1)}%`, col:p>0?"#5a9e6a":"#c05040", dir:p>0?1:-1 };
 }
 
+
+// ================================================================
+// SUPABASE — conexión a base de datos
+// Proyecto: kpoazrmnybdunbshlqwu.supabase.co
+// ================================================================
+const SUPABASE_URL = "https://kpoazrmnybdunbshlqwu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_EO9539rZKzX1PYfQ5znxOA_Tw6VV8mH";
+
+// Cliente Supabase liviano — sin SDK, fetch directo
+// Cuando DATA_SOURCE="live" usa Supabase; en "mock" usa datos locales
+const sb = {
+  from: (tabla) => ({
+    _tabla: tabla,
+    _filtros: [],
+    _orden: null,
+    _limit: null,
+
+    select: function(cols="*") {
+      this._cols = cols; return this;
+    },
+    eq: function(col, val) {
+      this._filtros.push(`${col}=eq.${val}`); return this;
+    },
+    order: function(col, {ascending=true}={}) {
+      this._orden = `${col}.${ascending?"asc":"desc"}`; return this;
+    },
+    limit: function(n) {
+      this._limit = n; return this;
+    },
+
+    // GET
+    then: async function(resolve, reject) {
+      try {
+        let url = `${SUPABASE_URL}/rest/v1/${this._tabla}?select=${this._cols||"*"}`;
+        if (this._filtros.length) url += "&" + this._filtros.join("&");
+        if (this._orden)         url += `&order=${this._orden}`;
+        if (this._limit)         url += `&limit=${this._limit}`;
+        const res = await fetch(url, {
+          headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+          }
+        });
+        const data = await res.json();
+        resolve({ data, error: res.ok ? null : data });
+      } catch(e) { reject({ data: null, error: e.message }); }
+    },
+
+    // INSERT
+    insert: async function(rows) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${this._tabla}`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=representation",
+        },
+        body: JSON.stringify(Array.isArray(rows) ? rows : [rows]),
+      });
+      const data = await res.json();
+      return { data, error: res.ok ? null : data };
+    },
+
+    // UPDATE
+    update: async function(vals) {
+      let url = `${SUPABASE_URL}/rest/v1/${this._tabla}`;
+      if (this._filtros.length) url += "?" + this._filtros.join("&");
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=representation",
+        },
+        body: JSON.stringify(vals),
+      });
+      const data = await res.json();
+      return { data, error: res.ok ? null : data };
+    },
+
+    // DELETE
+    delete: async function() {
+      let url = `${SUPABASE_URL}/rest/v1/${this._tabla}`;
+      if (this._filtros.length) url += "?" + this._filtros.join("&");
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+        },
+      });
+      return { error: res.ok ? null : await res.json() };
+    },
+  }),
+};
+
+// ── Funciones de acceso a datos con fallback a mock ──────────────
+
+async function dbGetGastosFijos() {
+  if (DATA_SOURCE !== "live") return GF_INIT;
+  const { data, error } = await sb.from("gastos_fijos")
+    .select("id,concepto,monto,categoria,icono")
+    .eq("activo", true);
+  if (error) { console.warn("Supabase GF error:", error); return GF_INIT; }
+  return data.map(r => ({ ...r, cat: r.categoria }));
+}
+
+async function dbGetSaldos() {
+  if (DATA_SOURCE !== "live") return { mp:1107900, bbva:115229, ef:600000 };
+  const { data, error } = await sb.from("saldos_caja").select("*");
+  if (error) { console.warn("Supabase saldos error:", error); return { mp:1107900, bbva:115229, ef:600000 }; }
+  const s = {};
+  data.forEach(r => {
+    if (r.cuenta === "mercadopago") s.mp  = r.monto;
+    if (r.cuenta === "bbva")        s.bbva = r.monto;
+    if (r.cuenta === "efectivo")    s.ef  = r.monto;
+  });
+  return s;
+}
+
+async function dbUpdateSaldo(cuenta, monto, quien) {
+  if (DATA_SOURCE !== "live") return;
+  // Busca el registro existente y lo actualiza
+  await sb.from("saldos_caja").eq("cuenta", cuenta).update({ monto, updated_by: quien, updated_at: new Date().toISOString() });
+}
+
+async function dbGetCompromisos() {
+  if (DATA_SOURCE !== "live") return COMPROMISOS_INIT;
+  const { data, error } = await sb.from("compromisos")
+    .select("*")
+    .order("fecha", { ascending: true });
+  if (error) { console.warn("Supabase compromisos error:", error); return COMPROMISOS_INIT; }
+  return data.map(r => ({
+    concepto: r.concepto,
+    fecha:    r.fecha?.slice(5).split("-").reverse().join("/"), // DD/MM
+    monto:    r.monto,
+    tipo:     r.tipo,
+    origen:   r.origen,
+    urgente:  r.urgente,
+    pagado:   r.pagado,
+    _id:      r.id,
+  }));
+}
+
+async function dbConfirmarPago(id, quien) {
+  if (DATA_SOURCE !== "live") return;
+  await sb.from("compromisos").eq("id", id).update({
+    pagado: true,
+    pagado_at: new Date().toISOString(),
+    pagado_by: quien,
+  });
+}
+
+async function dbGetStock() {
+  if (DATA_SOURCE !== "live") return STOCK_INIT;
+  const { data, error } = await sb.from("stock")
+    .select("*")
+    .order("categoria");
+  if (error) { console.warn("Supabase stock error:", error); return STOCK_INIT; }
+  return data.map(r => ({
+    item:  r.item, u: r.unidad, stock: r.stock_actual,
+    min:   r.stock_min, max: r.stock_max, cd: r.consumo_dia,
+    icon:  r.icono, cat: r.categoria, prov: r.proveedor,
+  }));
+}
+
+async function dbUpdateStock(item, nuevoStock, quien) {
+  if (DATA_SOURCE !== "live") return;
+  await sb.from("stock").eq("item", item).update({
+    stock_actual: nuevoStock,
+    updated_by: quien,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function dbRegistrarFactura(factura) {
+  // Llamado por el bot cuando procesa una foto de WhatsApp
+  // factura: { proveedor, fecha, vencimiento, total, items, drive_url }
+  if (DATA_SOURCE !== "live") return null;
+  const { data, error } = await sb.from("facturas").insert(factura);
+  if (error) { console.error("Error registrando factura:", error); return null; }
+  return data?.[0];
+}
+
+async function dbActualizarPrecioMP(ingrediente, nuevoPrecio, facturaId, proveedor) {
+  if (DATA_SOURCE !== "live") return;
+  // Guarda precio anterior y actualiza
+  const { data: actual } = await sb.from("precios_mp").eq("ingrediente", ingrediente);
+  const precioAnterior = actual?.[0]?.precio_actual;
+  await sb.from("precios_mp").eq("ingrediente", ingrediente).update({
+    precio_anterior: precioAnterior,
+    precio_actual: nuevoPrecio,
+    factura_id: facturaId,
+    proveedor,
+    vigente_desde: new Date().toISOString().slice(0,10),
+    updated_at: new Date().toISOString(),
+  });
+}
+
+// ================================================================
 const PASS = "Julia2420";
 const C = {
   bg:"#0c0a08",card:"#141210",card2:"#1c1916",border:"#2a2520",
@@ -1052,11 +1254,15 @@ function FichaCosto({prod,totalGF,onClose}){
 // === CAPA DE DATOS — reemplazar cada función con fetch real cuando esté disponible ===
 async function getVentas()      { return VENTAS_MAP; }
 async function getRanking()     { return RANKING; }
-async function getStock()       { return STOCK_INIT; }
-async function getGastosFijos() { return GF_INIT; }
-async function getCompromisos() { return COMPROMISOS_INIT; }
+async function getStock()       { return dbGetStock(); }
+async function getGastosFijos() { return dbGetGastosFijos(); }
+async function getCompromisos() { return dbGetCompromisos(); }
 async function getRecetas()     { return RECETAS; }
 async function getCombos()      { return COMBOS; }
+// ==================================================================================
+// En modo "live": gastos fijos, saldos, compromisos y stock vienen de Supabase.
+// Ventas y productos vienen de Fudo API (el 1/6).
+// Recetas y combos permanecen en código hasta que tengamos editor de recetas.
 // ==================================================================================
 
 // ── PROVEEDOR ALERTA ──────────────────────────────────────────────
@@ -1399,6 +1605,12 @@ function VistaMacro({onSwitch}){
   const [editGF,setEditGF]=useState(false);
   const [editStock,setEditStock]=useState(false);
   const [saldos,setSaldos]=useState({mp:1107900,bbva:115229,ef:600000});
+  // Carga saldos desde Supabase al montar (en modo live)
+  useEffect(()=>{
+    if(DATA_SOURCE==="live"){
+      dbGetSaldos().then(s=>{ if(s) setSaldos(s); });
+    }
+  },[]);
   const [editSaldos,setEditSaldos]=useState(false);
   const [compromisos,setCompromisos]=useState(COMPROMISOS_INIT);
   const [notif,setNotif]=useState({});
