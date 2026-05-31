@@ -2405,7 +2405,6 @@ function VistaMacro({onSwitch}){
                             const ct=p.mp+gfu+iibb+tc;
                             const rent=(p.pv-ct)/p.pv*100;
                             const rentC=rent>30?C.green:rent>20?C.yellow:C.red;
-                            const rankProd=RANKING.find(r=>r.n===p.n||r.n.toLowerCase().includes(p.n.toLowerCase().split(" ")[0]));
                             return(
                               <tr key={i} style={{borderBottom:`1px solid ${C.border}22`,background:i%2===0?"transparent":C.card2}}>
                                 <td style={{padding:"7px 9px",fontWeight:600}}>{p.n}</td>
@@ -2420,10 +2419,10 @@ function VistaMacro({onSwitch}){
                                 </td>
                                 <td style={{padding:"7px 9px",color:C.muted}}>{p.u}</td>
                                 <td style={{padding:"7px 9px"}}>
-                                  {rankProd&&<button onClick={()=>setFichaprod(rankProd)}
+                                  <button onClick={()=>setFichaprod({n:p.n,pv:p.pv,cat:p.cat,mp:p.mp})}
                                     style={{fontSize:10,padding:"3px 7px",borderRadius:6,border:`1px solid ${C.border}`,background:C.card2,color:C.muted,cursor:"pointer",whiteSpace:"nowrap"}}>
                                     Ver receta
-                                  </button>}
+                                  </button>
                                 </td>
                               </tr>
                             );
