@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 
@@ -725,6 +725,16 @@ function FichaCosto({prod,totalGF,onClose}){
 }
 
 
+// === CAPA DE DATOS — reemplazar cada función con fetch real cuando esté disponible ===
+async function getVentas()      { return VENTAS_MAP; }
+async function getRanking()     { return RANKING; }
+async function getStock()       { return STOCK_INIT; }
+async function getGastosFijos() { return GF_INIT; }
+async function getCompromisos() { return COMPROMISOS_INIT; }
+async function getRecetas()     { return RECETAS; }
+async function getCombos()      { return COMBOS; }
+// ==================================================================================
+
 // ── PROVEEDOR ALERTA ──────────────────────────────────────────────
 function ProvAlerta({prov,items,col,pedidoTexto,notif,onNotif}){
   const [open,setOpen]=useState(false);
@@ -880,6 +890,29 @@ function Calendario({compromisos,onConfirmar}){
       )}
     </div>
   );
+}
+
+
+// ── HOOK DE DATOS ─────────────────────────────────────────────────
+function useAppData(){
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(null);
+  useEffect(()=>{
+    Promise.all([
+      getVentas(),getRanking(),getStock(),
+      getGastosFijos(),getCompromisos(),getRecetas(),getCombos()
+    ])
+    .then(([ventas,ranking,stock,gf,compromisos,recetas,combos])=>{
+      setData({ventas,ranking,stock,gf,compromisos,recetas,combos});
+      setLoading(false);
+    })
+    .catch(err=>{
+      setError(err.message);
+      setLoading(false);
+    });
+  },[]);
+  return {data,loading,error};
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────
@@ -1134,7 +1167,7 @@ function VistaMacro({onSwitch}){
               <KPI label="Ticket promedio"    value={fmt(Math.round(ventas/txnTotal))} sub="obj: $13.000" color={C.accent}
                 prev={VENTAS_ABRIL.ticketPromedio} rawValue={Math.round(ventas/txnTotal)}/>
               <KPI label="Resultado neto est." value={fmtK(resultadoNeto)} sub="después de sueldos" color={resultadoNeto>0?C.green:C.red} borde={resultadoNeto>0?C.green:C.red}
-                prev={0} rawValue={resultadoNeto}/>
+                />
               <KPI label="Punto de equilibrio" value={fmtK(breakeven)} sub="necesitás facturar esto" color={C.blue}/>
             </div>
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
@@ -1550,7 +1583,7 @@ function VistaMacro({onSwitch}){
           // Rentabilidad por canal
           const canales=[
             {nombre:"Local (mostrador)",pct:0.70,comision:0.0,    tarjeta:0.0501},
-            {nombre:"PedidosYa",         pct:0.15,comision:0.30,   tarjeta:0},
+            {nombre:"PedidosYa",         pct:0.15,comision:0.18,   tarjeta:0},
             {nombre:"Big Box",           pct:0.15,comision:0.25,   tarjeta:0},
           ];
           return(
@@ -1601,7 +1634,7 @@ function VistaMacro({onSwitch}){
             {/* Rentabilidad por canal */}
             <div style={{fontSize:13,fontWeight:700,marginBottom:10,marginTop:4}}>Resultado por canal</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:12}}>
-              Un producto con margen ajustado en mostrador puede ser directamente negativo en delivery. PedidosYa cobra 30% y BigBox 25% — revisá qué vendés por cada canal.
+              Un producto con margen ajustado en mostrador puede ser directamente negativo en delivery. PedidosYa cobra 18% y BigBox 25% — revisá qué vendés por cada canal.
             </div>
             <div style={{background:C.card,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",marginBottom:16}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -1696,14 +1729,26 @@ function VistaMacro({onSwitch}){
             {["Personal","Estructura","Servicios","Admin","Impuestos"].map(cat=>{
               const items=gf.filter(g=>g.cat===cat);
               const total=items.reduce((s,g)=>s+g.monto,0);
+              const pctDeGF=total/totalGF*100;
               const cols={Personal:C.blue,Estructura:C.accent,Servicios:C.green,Admin:C.yellow,Impuestos:C.red};
               const col=cols[cat];
+              const esPersonal=cat==="Personal";
+              const semaforoCol=esPersonal?(pctDeGF<50?C.green:pctDeGF<60?C.yellow:C.red):null;
+              const semaforoLabel=esPersonal?(pctDeGF<50?"OK":pctDeGF<60?"Atención":"Crítico"):null;
               return(
                 <div key={cat} style={{marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                    <span style={{fontWeight:700,color:col,fontSize:12}}>{cat}</span>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:esPersonal?4:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontWeight:700,color:col,fontSize:12}}>{cat}</span>
+                      {esPersonal&&(
+                        <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:`${semaforoCol}22`,color:semaforoCol,border:`1px solid ${semaforoCol}44`,fontWeight:700}}>
+                          {semaforoLabel}
+                        </span>
+                      )}
+                    </div>
                     <span style={{fontSize:11,color:C.muted}}>{fmt(total)}</span>
                   </div>
+                  {esPersonal&&<div style={{fontSize:10,color:semaforoCol,marginBottom:8,fontWeight:600}}>{pctDeGF.toFixed(0)}% del total de gastos fijos</div>}
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:8}}>
                     {items.map((g,i)=>(
                       <div key={i} style={{background:C.card,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12}}>
@@ -1731,7 +1776,30 @@ function VistaMacro({onSwitch}){
 }
 
 export default function App(){
+  const {data,loading,error}=useAppData();
   const [vista,setVista]=useState(null);
+
+  if(loading) return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Georgia,serif"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:32,fontWeight:700,color:C.accent,letterSpacing:"-1px",marginBottom:16}}>batata</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10,width:280,margin:"0 auto"}}>
+          {[100,75,90,60].map((w,i)=>(
+            <div key={i} style={{height:12,borderRadius:6,background:C.card2,width:`${w}%`,
+              animation:"pulse 1.5s ease-in-out infinite",animationDelay:`${i*0.15}s`}}/>
+          ))}
+        </div>
+        <style>{`@keyframes pulse{0%,100%{opacity:.3}50%{opacity:.8}}`}</style>
+      </div>
+    </div>
+  );
+
+  if(error) return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",color:C.red,fontFamily:"Georgia,serif"}}>
+      Error cargando datos: {error}
+    </div>
+  );
+
   if(!vista) return <Login onLogin={v=>setVista(v)}/>;
   if(vista==="diario") return <VistaDiaria onSwitch={()=>setVista("macro")}/>;
   return <VistaMacro onSwitch={()=>setVista("diario")}/>;
