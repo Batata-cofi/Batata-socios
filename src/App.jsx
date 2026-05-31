@@ -1149,9 +1149,25 @@ const AL={potenciar:"⭐ Potenciar",subir:"↑ Subir precio",revisar:"⚠️ Rev
 
 // ── FICHA DE COSTO ────────────────────────────────────────────────
 function FichaCosto({prod,totalGF,onClose}){
-  const receta=RECETAS[prod.n]||[];
+  const recetaLocal=RECETAS[prod.n]||[];
   const [editando,setEditando]=useState(false);
-  const [ingrs,setIngrs]=useState(receta.map(r=>({...r})));
+  const [ingrs,setIngrs]=useState(recetaLocal.map(r=>({...r})));
+  const [cargandoReceta,setCargandoReceta]=useState(false);
+  // Cargar receta desde Supabase si está en modo live
+  useEffect(()=>{
+    if(DATA_SOURCE==="live"){
+      setCargandoReceta(true);
+      fetch(`${SUPABASE_URL}/rest/v1/recetas?producto=eq.${encodeURIComponent(prod.n)}&select=ingredientes`,
+        {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}})
+        .then(r=>r.json())
+        .then(data=>{
+          if(Array.isArray(data)&&data.length>0&&data[0].ingredientes){
+            setIngrs(data[0].ingredientes.map(r=>({...r})));
+          }
+          setCargandoReceta(false);
+        }).catch(e=>{console.warn("Error cargando receta:",e);setCargandoReceta(false);});
+    }
+  },[prod.n]);
   const mpCalc=ingrs.reduce((s,r)=>s+(r.subtotal||r.gr*r.pu/1000),0);
   const gfu=prod.pv*totalGF/FACT_BASE;
   const iibb=prod.pv*0.015;
@@ -1204,7 +1220,18 @@ function FichaCosto({prod,totalGF,onClose}){
             Receta {ingrs.length===0&&<span style={{color:C.red,fontSize:10}}>— pendiente</span>}
           </div>
           {ingrs.length>0&&(
-            <button onClick={()=>setEditando(!editando)}
+            <button onClick={()=>{
+                if(editando && DATA_SOURCE==="live"){
+                  // Guardar receta en Supabase
+                  const ingredientes=ingrs.map(r=>({ing:r.ing,gr:r.gr,pu:r.pu,u:r.u,subtotal:r.subtotal||r.gr*r.pu}));
+                  fetch(`${SUPABASE_URL}/rest/v1/recetas?producto=eq.${encodeURIComponent(prod.n)}`,{
+                    method:"PATCH",
+                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                    body:JSON.stringify({ingredientes,updated_by:"Lautaro",updated_at:new Date().toISOString()})
+                  }).catch(e=>console.warn("Error guardando receta:",e));
+                }
+                setEditando(!editando);
+              }}
               style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${editando?C.accent:C.border}`,background:editando?C.accentDim:C.card,color:editando?C.accent:C.muted,cursor:"pointer"}}>
               {editando?"✓ Guardar receta":"✏️ Editar receta"}
             </button>
