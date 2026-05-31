@@ -1533,6 +1533,22 @@ function Login({onLogin}){
 // ── VISTA DIARIA ──────────────────────────────────────────────────
 function VistaDiaria({onSwitch}){
   const [compromisos,setCompromisos]=useState(COMPROMISOS_INIT);
+  useEffect(()=>{
+    if(DATA_SOURCE==="live"){
+      fetch(`${SUPABASE_URL}/rest/v1/compromisos?select=*&order=fecha.asc`,
+        {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}})
+        .then(r=>r.json())
+        .then(data=>{
+          if(!Array.isArray(data)||!data.length) return;
+          setCompromisos(data.map(r=>({
+            concepto:r.concepto,
+            fecha:r.fecha?.slice(5).split("-").reverse().join("/"),
+            monto:r.monto, tipo:r.tipo, origen:r.origen,
+            urgente:r.urgente, pagado:r.pagado, _id:r.id,
+          })));
+        }).catch(e=>console.warn("Supabase compromisos diaria error:",e));
+    }
+  },[]);
   const [stock]=useState(STOCK_INIT);
   const [notif,setNotif]=useState({});
   const [modalNotif,setModalNotif]=useState(null);
@@ -2037,7 +2053,16 @@ function VistaMacro({onSwitch}){
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:13,fontWeight:700,color:c.pagado?C.muted:C.red,marginBottom:4}}>{fmt(c.monto)}</div>
                     {c.pagado ? <span style={{fontSize:11,color:C.green}}>✓ Pagado</span>
-                      : <button onClick={()=>setCompromisos(compromisos.map((x,j)=>j===i?{...x,pagado:true}:x))}
+                      : <button onClick={()=>{
+                    setCompromisos(compromisos.map((x,j)=>j===i?{...x,pagado:true}:x));
+                    if(DATA_SOURCE==="live" && c._id){
+                      fetch(`${SUPABASE_URL}/rest/v1/compromisos?id=eq.${c._id}`,{
+                        method:"PATCH",
+                        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                        body:JSON.stringify({pagado:true,pagado_at:new Date().toISOString(),pagado_by:"Lautaro"})
+                      }).catch(e=>console.warn("Error confirmando pago macro:",e));
+                    }
+                  }}
                           style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${C.green}44`,background:C.greenDim,color:C.green,cursor:"pointer"}}>✓ Confirmar</button>
                     }
                   </div>
