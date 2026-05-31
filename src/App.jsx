@@ -67,7 +67,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // ESTADO ACTUAL: pendiente — estructura preparada, sin implementar
 // ================================================================
 
-const DATA_SOURCE = "mock"; // "mock" | "live" — cambiar cuando conecte APIs
+const DATA_SOURCE = "live"; // "mock" | "live"
 
 // ESTIMADO — reemplazar con dato real de Fudo cuando esté conectado
 const VENTAS_ABRIL = {
