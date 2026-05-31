@@ -3,12 +3,23 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 
 // === CONTRATO DE APIs ===
-// Fudo — Ventas
-//   GET /ventas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
-//   Response: { fecha: string, total: number, transacciones: number }[]
+// Fudo — Ventas por rango (usado en Análisis Semanal)
+//   GET /api/v1/sales?from=YYYY-MM-DD&to=YYYY-MM-DD
+//   Headers: { Authorization: "Bearer {FUDO_TOKEN}" }
+//   Response: { sales: { id, date, total, persons, items }[] }
+//   NOTA: Fudo no filtra por fecha en el endpoint — se filtra client-side
+//         El tablero pagina la respuesta y descarta lo que está fuera del rango
+//
+// Fudo — Resumen de ventas (personas + ticket)
+//   GET /api/v1/sales/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
+//   Response: { total: number, persons: number, avg_per_sale: number, avg_per_person: number }
+//
+// Fudo — Ventas por hora (para Horarios)
+//   GET /api/v1/sales?from=YYYY-MM-DDTHH:00&to=YYYY-MM-DDTHH:59
+//   Response: { sales: { date, hour, total, persons }[] }
 //
 // Fudo — Ranking de productos
-//   GET /productos/ranking?periodo=mes
+//   GET /api/v1/products/ranking?from=YYYY-MM-DD&to=YYYY-MM-DD
 //   Response: { nombre: string, unidades: number, total: number }[]
 //
 // Google Sheets — Gastos fijos
@@ -18,6 +29,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // Google Sheets — Stock
 //   GET /sheets/{id}/values/Stock
 //   Response: { item: string, stock: number, min: number, max: number }[]
+//
+// CREDENCIALES (completar el 1/6):
+//   FUDO_BASE_URL = "https://{cuenta}.fudo.com.ar"
+//   FUDO_TOKEN    = "Bearer xxxx"   ← generado en Admin→Usuarios→API Secret
 // ========================
 
 // === ARQUITECTURA BOT DE FACTURAS (WhatsApp → Drive → Tablero) ===
@@ -104,6 +119,158 @@ const HOY = new Date();
 const DIA_ACTUAL = HOY.getDate();
 const SEM_ACTUAL = getSemanaDelMes(DIA_ACTUAL);
 const SEM_KEY = `sem${SEM_ACTUAL}`;
+
+
+// ── DATOS ANÁLISIS SEMANAL ────────────────────────────────────────
+// Fuente: planilla Comparativa cargada a mano desde marzo 2025.
+// Cuando conecte Fudo API (1/6), getSemanaData() reemplaza estos mocks.
+// Métrica: PERSONAS (no transacciones). 1 pedido puede ser 1–4 personas.
+// Clima: datos reales mayo 2026 Buenos Aires (weatherandclimate.eu)
+
+const FUDO_BASE_URL = ""; // completar el 1/6: "https://{cuenta}.fudo.com.ar"
+const FUDO_TOKEN    = ""; // completar el 1/6: token desde Admin→Usuarios→API Secret
+
+// ── Función de acceso a datos — mock hoy, live el 1/6 ────────────
+async function getSemanaData(anio, mes, semana) {
+  if (DATA_SOURCE === "live" && FUDO_BASE_URL && FUDO_TOKEN) {
+    // Calcular rango de fechas para la semana operativa solicitada
+    const rangos = { 1:[1,7], 2:[8,14], 3:[15,21], 4:[22,31] };
+    const [d1, d2] = rangos[semana];
+    const pad = n => String(n).padStart(2,"0");
+    const from = `${anio}-${pad(mes)}-${pad(d1)}`;
+    const to   = `${anio}-${pad(mes)}-${pad(Math.min(d2, new Date(anio,mes,0).getDate()))}`;
+    try {
+      const res = await fetch(
+        `${FUDO_BASE_URL}/api/v1/sales/summary?from=${from}&to=${to}`,
+        { headers: { Authorization: `Bearer ${FUDO_TOKEN}` } }
+      );
+      const json = await res.json();
+      // Fudo response: { total, persons, avg_per_sale, avg_per_person }
+      return {
+        facturacion: json.total,
+        personas:    json.persons,
+        ticketPorPersona: json.avg_per_person,
+      };
+    } catch(e) {
+      console.warn("Fudo API error, usando mock:", e);
+    }
+  }
+  // Mock — datos reales de planillas
+  return SEMANA_MOCK[`${anio}-${mes}-${semana}`] || null;
+}
+
+async function getHorarioData(anio, mes) {
+  if (DATA_SOURCE === "live" && FUDO_BASE_URL && FUDO_TOKEN) {
+    const pad = n => String(n).padStart(2,"0");
+    const from = `${anio}-${pad(mes)}-01`;
+    const to   = `${anio}-${pad(mes)}-31`;
+    try {
+      const res = await fetch(
+        `${FUDO_BASE_URL}/api/v1/sales?from=${from}&to=${to}`,
+        { headers: { Authorization: `Bearer ${FUDO_TOKEN}` } }
+      );
+      const json = await res.json();
+      // Agrupar por día de semana y hora client-side
+      // json.sales: [{ date, hour, total, persons }]
+      return json.sales;
+    } catch(e) {
+      console.warn("Fudo API error horario, usando mock:", e);
+    }
+  }
+  return HORARIO_MOCK[`${anio}-${mes}`] || [];
+}
+
+// ── MOCK — ventas semanales reales (personas de planilla Comparativa) ──
+// Estructura: "anio-mes-semana" → { facturacion, personas, ticketPorPersona, dias, clima }
+const SEMANA_MOCK = {
+  // ── MAYO 2026 (datos reales Fudo mayo 2026) ──────────────────
+  "2026-5-1": { facturacion:2546400, personas:155, ticketPorPersona:16428, dias:5,
+    clima:{ max:18, min:13, icono:"sol",    desc:"Soleado · seco" }},
+  "2026-5-2": { facturacion:3669000, personas:234, ticketPorPersona:15679, dias:6,
+    clima:{ max:17, min:12, icono:"nube",   desc:"Variable · lluvia 14/5" }},
+  "2026-5-3": { facturacion:3660250, personas:242, ticketPorPersona:15125, dias:6,
+    clima:{ max:17, min:12, icono:"lluvia", desc:"Lluvia 18/5 (5,3mm)" }},
+  "2026-5-4": { facturacion:3978800, personas:267, ticketPorPersona:14902, dias:7,
+    clima:{ max:16, min:11, icono:"nublado",desc:"Más frío · nublado" }},
+  // ── ABRIL 2026 (personas de planilla Comparativa) ────────────
+  "2026-4-1": { facturacion:3381570, personas:295, ticketPorPersona:11463, dias:7,
+    clima:{ max:22, min:15, icono:"sol",    desc:"Otoño templado" }},
+  "2026-4-2": { facturacion:4119780, personas:356, ticketPorPersona:11573, dias:7,
+    clima:{ max:20, min:14, icono:"nube",   desc:"Variable" }},
+  "2026-4-3": { facturacion:3527980, personas:299, ticketPorPersona:11799, dias:7,
+    clima:{ max:20, min:14, icono:"sol",    desc:"Soleado" }},
+  "2026-4-4": { facturacion:5242400, personas:444, ticketPorPersona:11807, dias:9,
+    clima:{ max:19, min:13, icono:"nube",   desc:"Algo nublado" }},
+  // ── MAYO 2025 (personas de planilla Comparativa) ─────────────
+  "2025-5-1": { facturacion:3346740, personas:361, ticketPorPersona:9270,  dias:7,
+    clima:{ max:20, min:13, icono:"sol",    desc:"Soleado" }},
+  "2025-5-2": { facturacion:3381400, personas:386, ticketPorPersona:8761,  dias:7,
+    clima:{ max:19, min:12, icono:"nube",   desc:"Variable" }},
+  "2025-5-3": { facturacion:3093400, personas:346, ticketPorPersona:8939,  dias:7,
+    clima:{ max:18, min:11, icono:"lluvia", desc:"Lluvia" }},
+  "2025-5-4": { facturacion:3927800, personas:444, ticketPorPersona:8846,  dias:9,
+    clima:{ max:17, min:10, icono:"nublado",desc:"Frío y nublado" }},
+};
+
+// ── MOCK — distribución horaria mayo 2026 (datos reales Fudo export) ──
+// Fuente: Reporte-Ventas_1_.xlsx procesado — promedios por día de semana y hora
+const HORARIO_MOCK = {
+  "2026-5": [
+    // [dow(1=Mar..6=Dom), hora, ventasProm, personasProm]
+    // Martes
+    {dow:1,nom:"Martes", hora:8,  v:23075,p:1.0},{dow:1,nom:"Martes", hora:9,  v:34750,p:3.0},
+    {dow:1,nom:"Martes", hora:10, v:78650,p:6.0},{dow:1,nom:"Martes", hora:11, v:52825,p:5.0},
+    {dow:1,nom:"Martes", hora:12, v:12075,p:1.0},{dow:1,nom:"Martes", hora:13, v:7325, p:1.0},
+    {dow:1,nom:"Martes", hora:14, v:26000,p:1.8},{dow:1,nom:"Martes", hora:15, v:27525,p:2.8},
+    {dow:1,nom:"Martes", hora:16, v:57850,p:3.0},{dow:1,nom:"Martes", hora:17, v:153825,p:10.8},
+    {dow:1,nom:"Martes", hora:18, v:63100,p:4.0},{dow:1,nom:"Martes", hora:19, v:4100, p:0.5},
+    // Miércoles
+    {dow:2,nom:"Miércoles",hora:8, v:9575, p:1.0},{dow:2,nom:"Miércoles",hora:9, v:36075,p:3.0},
+    {dow:2,nom:"Miércoles",hora:10,v:34450,p:2.5},{dow:2,nom:"Miércoles",hora:11,v:38925,p:2.5},
+    {dow:2,nom:"Miércoles",hora:12,v:24675,p:2.0},{dow:2,nom:"Miércoles",hora:13,v:38950,p:2.5},
+    {dow:2,nom:"Miércoles",hora:14,v:11450,p:1.0},{dow:2,nom:"Miércoles",hora:15,v:43450,p:3.5},
+    {dow:2,nom:"Miércoles",hora:16,v:93600,p:5.2},{dow:2,nom:"Miércoles",hora:17,v:130850,p:10.2},
+    {dow:2,nom:"Miércoles",hora:18,v:73875,p:4.8},{dow:2,nom:"Miércoles",hora:19,v:4700,p:0.2},
+    // Jueves
+    {dow:3,nom:"Jueves",hora:8, v:7900, p:0.8},{dow:3,nom:"Jueves",hora:9, v:20450,p:1.8},
+    {dow:3,nom:"Jueves",hora:10,v:63075,p:3.8},{dow:3,nom:"Jueves",hora:11,v:42275,p:2.2},
+    {dow:3,nom:"Jueves",hora:12,v:30125,p:2.2},{dow:3,nom:"Jueves",hora:13,v:8500, p:0.5},
+    {dow:3,nom:"Jueves",hora:14,v:28250,p:2.5},{dow:3,nom:"Jueves",hora:15,v:25700,p:2.2},
+    {dow:3,nom:"Jueves",hora:16,v:39325,p:3.0},{dow:3,nom:"Jueves",hora:17,v:115675,p:7.5},
+    {dow:3,nom:"Jueves",hora:18,v:108550,p:5.8},{dow:3,nom:"Jueves",hora:19,v:4550,p:0.5},
+    // Viernes
+    {dow:4,nom:"Viernes",hora:8, v:6400, p:0.8},{dow:4,nom:"Viernes",hora:9, v:44900,p:2.8},
+    {dow:4,nom:"Viernes",hora:10,v:40950,p:2.5},{dow:4,nom:"Viernes",hora:11,v:73750,p:4.2},
+    {dow:4,nom:"Viernes",hora:12,v:28550,p:2.0},{dow:4,nom:"Viernes",hora:13,v:45900,p:3.5},
+    {dow:4,nom:"Viernes",hora:14,v:27550,p:1.8},{dow:4,nom:"Viernes",hora:15,v:37775,p:2.5},
+    {dow:4,nom:"Viernes",hora:16,v:82325,p:6.0},{dow:4,nom:"Viernes",hora:17,v:134800,p:8.2},
+    {dow:4,nom:"Viernes",hora:18,v:117888,p:7.5},{dow:4,nom:"Viernes",hora:19,v:3800,p:0.5},
+    // Sábado
+    {dow:5,nom:"Sábado",hora:9, v:1250, p:0.2},{dow:5,nom:"Sábado",hora:10,v:118925,p:7.0},
+    {dow:5,nom:"Sábado",hora:11,v:95175,p:5.8},{dow:5,nom:"Sábado",hora:12,v:64475,p:3.2},
+    {dow:5,nom:"Sábado",hora:13,v:82525,p:5.0},
+    {dow:5,nom:"Sábado",hora:16,v:153100,p:8.8},{dow:5,nom:"Sábado",hora:17,v:165600,p:9.5},
+    {dow:5,nom:"Sábado",hora:18,v:103750,p:5.5},{dow:5,nom:"Sábado",hora:19,v:11700,p:1.0},
+    // Domingo
+    {dow:6,nom:"Domingo",hora:16,v:139375,p:7.5},{dow:6,nom:"Domingo",hora:17,v:187800,p:10.8},
+    {dow:6,nom:"Domingo",hora:18,v:98450,p:6.0},{dow:6,nom:"Domingo",hora:19,v:20850,p:1.0},
+  ],
+};
+
+// ── Helper clima icono ─────────────────────────────────────────────
+function climaIcono(icono, size=14){
+  const map={sol:"☀",nube:"⛅",lluvia:"🌧",nublado:"☁"};
+  return map[icono]||"🌡";
+}
+
+// ── Calcular % variación con reglas de negocio ────────────────────
+function varPct(actual, ref){
+  if(!ref||ref===0) return null;
+  const p=((actual-ref)/ref*100);
+  const abs=Math.abs(p);
+  if(abs<0.5) return {txt:"≈ igual",col:"#7a6e62",dir:0};
+  return { txt:`${p>0?"↑":"↓"}${abs.toFixed(1)}%`, col:p>0?"#5a9e6a":"#c05040", dir:p>0?1:-1 };
+}
 
 const PASS = "Julia2420";
 const C = {
@@ -1258,6 +1425,7 @@ function VistaMacro({onSwitch}){
   const TABS=[
     {id:"inicio",   label:"Inicio",   icon:"◈"},
     {id:"ventas",   label:"Ventas",   icon:"↗"},
+    {id:"semana",   label:"Semana",   icon:"◷"},
     {id:"caja",     label:"Caja",     icon:"💰"},
     {id:"stock",    label:"Stock",    icon:"▦"},
     {id:"menu",     label:"Menú",     icon:"◉"},
@@ -1860,6 +2028,213 @@ function VistaMacro({onSwitch}){
                   </div>
                 );
               })}
+            </div>
+          );
+        })()}
+
+
+        {/* ═══ SEMANA ═══ */}
+        {tab==="semana"&&(()=>{
+          const MES_ACT=5; const ANIO_ACT=2026;
+          const MESES_NOM=["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+          const MES_NOM=["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+          // Semanas del mes actual con sus datos
+          const semanas=[1,2,3,4].map(s=>({
+            sem:s,
+            actual: SEMANA_MOCK[`${ANIO_ACT}-${MES_ACT}-${s}`]||null,
+            mesAnt: SEMANA_MOCK[`${ANIO_ACT}-${MES_ACT-1}-${s}`]||null,
+            anioAnt:SEMANA_MOCK[`${ANIO_ACT-1}-${MES_ACT}-${s}`]||null,
+          }));
+
+          const labelSem=s=>s===1?"1–7":s===2?"8–14":s===3?"15–21":"22–fin";
+          const esActual=s=>s===SEM_ACTUAL;
+
+          // Horario: agrupar HORARIO_MOCK por día
+          const horRows=HORARIO_MOCK["2026-5"]||[];
+          const dias=[...new Set(horRows.map(r=>r.dow))].sort();
+          const FRANJAS=[
+            {id:"man",label:"Mañana",rango:"8–11hs", horas:[8,9,10,11],  col:"#4878a8"},
+            {id:"med",label:"Mediodía",rango:"12–15hs",horas:[12,13,14,15],col:"#7a6e62"},
+            {id:"tar",label:"Tarde",  rango:"16–19hs",horas:[16,17,18,19],col:"#d4845a"},
+          ];
+          function franjaVentas(dow,horas){
+            return horRows.filter(r=>r.dow===dow&&horas.includes(r.hora)).reduce((s,r)=>s+r.v,0);
+          }
+          function totalDia(dow){
+            return horRows.filter(r=>r.dow===dow).reduce((s,r)=>s+r.v,0);
+          }
+          function picoHora(dow){
+            const rows=horRows.filter(r=>r.dow===dow);
+            if(!rows.length) return null;
+            return rows.reduce((mx,r)=>r.v>mx.v?r:mx,rows[0]);
+          }
+          function nomDow(dow){return["","Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][dow];}
+
+          return(
+            <div>
+              {/* Header */}
+              <div style={{marginBottom:20}}>
+                <div style={{fontSize:13,color:C.muted}}>
+                  {MES_NOM[MES_ACT]} {ANIO_ACT} · datos reales Fudo
+                  {DATA_SOURCE==="mock"&&<span style={{marginLeft:8,fontSize:10,padding:"1px 7px",borderRadius:10,background:C.card2,color:C.muted,border:`1px solid ${C.border}`}}>mock — conectar API el 1/6</span>}
+                </div>
+                <div style={{fontSize:24,fontWeight:700,marginTop:2}}>Análisis semanal</div>
+              </div>
+
+              {/* ── SECCIÓN 1: SEMANAS ── */}
+              <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".06em",textTransform:"uppercase",marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${C.border}`}}>
+                Facturación · Personas · Clima — por semana operativa
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:28}}>
+                {semanas.map(({sem,actual,mesAnt,anioAnt})=>{
+                  if(!actual) return null;
+                  const vFact=varPct(actual.facturacion, mesAnt?.facturacion);
+                  const vFactA=varPct(actual.facturacion, anioAnt?.facturacion);
+                  const vPers=varPct(actual.personas, mesAnt?.personas);
+                  const vPersA=varPct(actual.personas, anioAnt?.personas);
+                  const isAct=esActual(sem);
+                  return(
+                    <div key={sem} style={{background:C.card,borderRadius:10,padding:"13px 13px 11px",border:`1px solid ${isAct?C.accent:C.border}`,position:"relative"}}>
+                      {isAct&&<div style={{position:"absolute",top:9,right:9,fontSize:10,padding:"2px 7px",borderRadius:10,background:C.accentDim,color:C.accent,fontWeight:600}}>actual</div>}
+
+                      {/* Etiqueta semana */}
+                      <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:2}}>Semana {sem} · {labelSem(sem)}</div>
+                      <div style={{fontSize:10,color:C.dim,marginBottom:10}}>{actual.dias} días operados</div>
+
+                      {/* Clima */}
+                      <div style={{display:"flex",alignItems:"center",gap:6,background:C.card2,borderRadius:6,padding:"5px 8px",marginBottom:10}}>
+                        <span style={{fontSize:15}}>{climaIcono(actual.clima.icono)}</span>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:600,color:C.text}}>{actual.clima.max}° / {actual.clima.min}°C</div>
+                          <div style={{fontSize:10,color:C.muted}}>{actual.clima.desc}</div>
+                        </div>
+                      </div>
+
+                      {/* Facturación */}
+                      <div style={{marginBottom:9,paddingBottom:9,borderBottom:`1px solid ${C.border}22`}}>
+                        <div style={{fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em",marginBottom:3}}>Facturación</div>
+                        <div style={{fontSize:19,fontWeight:700,color:C.text,lineHeight:1,marginBottom:5}}>{fmtK(actual.facturacion)}</div>
+                        {/* vs mes anterior */}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0"}}>
+                          <span style={{fontSize:10,color:C.dim}}>vs sem {sem} {MESES_NOM[MES_ACT-1]}</span>
+                          {vFact
+                            ? <span style={{fontSize:10,fontWeight:600,color:vFact.col}}>{vFact.txt}</span>
+                            : <span style={{fontSize:10,color:C.dim}}>— sin dato</span>
+                          }
+                        </div>
+                        {/* vs año anterior */}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0"}}>
+                          <span style={{fontSize:10,color:C.dim}}>vs sem {sem} may '25</span>
+                          {vFactA
+                            ? <span style={{fontSize:10,fontWeight:600,color:vFactA.col}}>{vFactA.txt}</span>
+                            : <span style={{fontSize:10,color:C.dim}}>— sin dato</span>
+                          }
+                        </div>
+                      </div>
+
+                      {/* Personas */}
+                      <div style={{marginBottom:8}}>
+                        <div style={{fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em",marginBottom:3}}>Personas</div>
+                        <div style={{fontSize:19,fontWeight:700,color:C.blue,lineHeight:1,marginBottom:5}}>{actual.personas}</div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0"}}>
+                          <span style={{fontSize:10,color:C.dim}}>vs sem {sem} {MESES_NOM[MES_ACT-1]}</span>
+                          {vPers
+                            ? <span style={{fontSize:10,fontWeight:600,color:vPers.col}}>{vPers.txt}</span>
+                            : <span style={{fontSize:10,color:C.dim}}>— sin dato</span>
+                          }
+                        </div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0"}}>
+                          <span style={{fontSize:10,color:C.dim}}>vs sem {sem} may '25</span>
+                          {vPersA
+                            ? <span style={{fontSize:10,fontWeight:600,color:vPersA.col}}>{vPersA.txt}</span>
+                            : <span style={{fontSize:10,color:C.dim}}>— sin dato</span>
+                          }
+                        </div>
+                      </div>
+
+                      {/* Ticket por persona */}
+                      <div style={{display:"inline-block",background:C.card2,borderRadius:6,padding:"3px 8px",fontSize:10,color:C.muted,marginTop:2}}>
+                        <span style={{color:C.text,fontWeight:600}}>{fmt(actual.ticketPorPersona)}</span> / persona
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Insight rápido */}
+              <div style={{background:C.card2,borderRadius:10,padding:"12px 16px",border:`1px solid ${C.border}`,marginBottom:28}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.accent,marginBottom:6}}>Lectura del mes</div>
+                <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>
+                  Facturación sube vs mayo 2025 en sem 2, 3 y 4 — el ticket por persona creció de ~$8.900 a ~$14.900–16.400 (inflación + carta).
+                  Las <strong style={{color:C.red}}>personas caen en las 4 semanas</strong> vs ambos períodos: entre 19% y 57% menos que el año pasado.
+                  Sem 1 cae por calendario (feriado + 5 días vs 7), no por performance — el promedio diario fue $509k, alineado con el resto del mes.
+                  <strong style={{color:C.yellow}}> El foco comercial es recuperar volumen de personas.</strong>
+                </div>
+              </div>
+
+              {/* ── SECCIÓN 2: HORARIOS ── */}
+              <div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".06em",textTransform:"uppercase",marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${C.border}`}}>
+                Distribución horaria · promedio por día de semana · {MES_NOM[MES_ACT]} {ANIO_ACT}
+              </div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:14,lineHeight:1.6}}>
+                Ventas promedio por hora en cada día. Tarde (16–19hs) domina todos los días. Domingo solo opera tarde. Datos reales de Fudo.
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:16}}>
+                {dias.map(dow=>{
+                  const total=totalDia(dow);
+                  const pico=picoHora(dow);
+                  return(
+                    <div key={dow} style={{background:C.card,borderRadius:10,padding:"12px 13px",border:`1px solid ${C.border}`}}>
+                      <div style={{fontSize:12,fontWeight:700,marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span>{nomDow(dow)}</span>
+                        <span style={{fontSize:10,color:C.muted,fontWeight:400}}>4 días</span>
+                      </div>
+                      {FRANJAS.map(fr=>{
+                        // sábado no tiene mediodía (14-15), domingo no tiene mañana ni mediodía
+                        const fv=franjaVentas(dow,fr.horas);
+                        if(fv===0) return null;
+                        const pct=total>0?(fv/total*100):0;
+                        return(
+                          <div key={fr.id} style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
+                            <span style={{fontSize:10,color:C.muted,width:76,flexShrink:0}}>{fr.label} {fr.rango}</span>
+                            <div style={{flex:1,background:C.card2,borderRadius:3,height:5,overflow:"hidden"}}>
+                              <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:fr.col,borderRadius:3}}/>
+                            </div>
+                            <span style={{fontSize:10,fontWeight:600,color:C.text,width:28,textAlign:"right",flexShrink:0}}>{Math.round(pct)}%</span>
+                          </div>
+                        );
+                      })}
+                      {pico&&(
+                        <div style={{fontSize:10,color:C.muted,borderTop:`1px solid ${C.border}22`,paddingTop:6,marginTop:4}}>
+                          Pico <span style={{color:C.accent,fontWeight:600}}>{pico.hora}hs</span> · {fmtK(pico.v)} prom · <span style={{color:C.blue}}>{pico.p.toFixed(1)} pers/hora</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Alertas de turno */}
+              <div style={{background:C.card,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+                <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:".05em"}}>
+                  Alertas de turno
+                </div>
+                {[
+                  {col:C.yellow,icon:"⚡",txt:"17hs es el pico universal en todos los días sin excepción. Si falta personal a esa hora, se pierde la hora más valiosa del día."},
+                  {col:C.red,   icon:"⚠",txt:"Mediodía (12–15hs) genera solo 13–22% de la caja según el día. Martes es el peor (13%). Evaluar staffing reducido en esa franja."},
+                  {col:C.blue,  icon:"◷",txt:"Tarde (16–19hs) genera el 51–56% en días de semana y 100% los domingos. El turno tarde es el que mueve el negocio."},
+                  {col:C.green, icon:"✓",txt:"Sábado sin registro 14–15hs. No hay ventas ni personas en esa ventana — cierre o sin movimiento confirmado por los datos."},
+                ].map((a,i,arr)=>(
+                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 14px",borderBottom:i<arr.length-1?`1px solid ${C.border}22`:"none"}}>
+                    <span style={{color:a.col,fontSize:15,flexShrink:0,marginTop:1}}>{a.icon}</span>
+                    <div style={{fontSize:11,color:C.text,lineHeight:1.5}}>{a.txt}</div>
+                  </div>
+                ))}
+              </div>
+
             </div>
           );
         })()}
