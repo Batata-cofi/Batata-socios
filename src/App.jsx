@@ -68,7 +68,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // ================================================================
 
 const DATA_SOURCE = "live"; // "live" | "live" — cambiar cuando conecte APIs
-
+window.__batata = { dbGetGastosFijos, dbGetSaldos, dbGetStock, dbGetCompromisos };
 // ESTIMADO — reemplazar con dato real de Fudo cuando esté conectado
 const VENTAS_ABRIL = {
   total: 19053900,        // abril 2026 real (de planilla)
