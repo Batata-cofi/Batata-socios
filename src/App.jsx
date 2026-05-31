@@ -1882,7 +1882,11 @@ function VistaMacro({onSwitch}){
             {["Café","Pastelería","Cocina"].map(cat=>{
               const items=RANKING.filter(p=>p.cat===cat||p.cat===cat+" esp.").sort((a,b)=>b.rent-a.rent);
               const catC=cat==="Café"?C.blue:cat==="Pastelería"?C.accent:C.green;
-              const promRent=(items.reduce((s,p)=>s+p.rent,0)/items.length).toFixed(1);
+              const promRent=(items.reduce((s,p)=>{
+                const gfu=p.pv*totalGF/FACT_BASE;
+                const ct=p.mp+gfu+p.pv*0.015+p.pv*0.0501;
+                return s+(p.pv-ct)/p.pv*100;
+              },0)/items.length).toFixed(1);
               return(
                 <div key={cat} style={{marginBottom:24}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
@@ -1904,7 +1908,8 @@ function VistaMacro({onSwitch}){
                           const iibb=p.pv*0.015;
                           const tc=p.pv*0.0501;
                           const ct=p.mp+gfu+iibb+tc;
-                          const rentC=p.rent>30?C.green:p.rent>20?C.yellow:C.red;
+                          const rent=(p.pv-ct)/p.pv*100;
+                          const rentC=rent>30?C.green:rent>20?C.yellow:C.red;
                           return(
                             <tr key={i} style={{borderBottom:i<items.length-1?`1px solid ${C.border}22`:"none",background:i%2===0?"transparent":C.card2}}>
                               <td style={{padding:"8px 10px",fontWeight:600}}>{p.n}</td>
@@ -1914,7 +1919,7 @@ function VistaMacro({onSwitch}){
                               <td style={{padding:"8px 10px",color:C.muted,fontSize:11}}>{fmt(tc)}</td>
                               <td style={{padding:"8px 10px",fontWeight:600}}>{fmt(ct)}</td>
                               <td style={{padding:"8px 10px"}}>{fmt(p.pv)}</td>
-                              <td style={{padding:"8px 10px"}}><span style={{fontWeight:700,color:rentC}}>{p.rent}%</span></td>
+                              <td style={{padding:"8px 10px"}}><span style={{fontWeight:700,color:rentC}}>{rent.toFixed(1)}%</span></td>
                               <td style={{padding:"8px 10px"}}>
                                 <button onClick={()=>setFichaprod(p)}
                                   style={{fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.card2,color:C.muted,cursor:"pointer",whiteSpace:"nowrap"}}>
