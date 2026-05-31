@@ -67,8 +67,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // ESTADO ACTUAL: pendiente — estructura preparada, sin implementar
 // ================================================================
 
-const DATA_SOURCE = "live"; // "live" | "live" — cambiar cuando conecte APIs
-window.__batata = { dbGetGastosFijos, dbGetSaldos, dbGetStock, dbGetCompromisos };
+const DATA_SOURCE = "mock"; // "mock" | "live" — cambiar cuando conecte APIs
+
 // ESTIMADO — reemplazar con dato real de Fudo cuando esté conectado
 const VENTAS_ABRIL = {
   total: 19053900,        // abril 2026 real (de planilla)
@@ -1254,9 +1254,60 @@ function FichaCosto({prod,totalGF,onClose}){
 // === CAPA DE DATOS — reemplazar cada función con fetch real cuando esté disponible ===
 async function getVentas()      { return VENTAS_MAP; }
 async function getRanking()     { return RANKING; }
-async function getStock()       { return dbGetStock(); }
-async function getGastosFijos() { return dbGetGastosFijos(); }
-async function getCompromisos() { return dbGetCompromisos(); }
+async function getStock() {
+  if (DATA_SOURCE === "live") {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/stock?select=*&order=categoria`,
+        { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+      );
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(r => ({
+          item: r.item, u: r.unidad, stock: r.stock_actual,
+          min: r.stock_min, max: r.stock_max, cd: r.consumo_dia,
+          icon: r.icono, cat: r.categoria, prov: r.proveedor,
+        }));
+      }
+    } catch(e) { console.warn("Supabase stock error:", e); }
+  }
+  return STOCK_INIT;
+}
+async function getGastosFijos() {
+  if (DATA_SOURCE === "live") {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/gastos_fijos?select=id,concepto,monto,categoria,icono&activo=eq.true`,
+        { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+      );
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(r => ({ ...r, cat: r.categoria }));
+      }
+    } catch(e) { console.warn("Supabase GF error:", e); }
+  }
+  return GF_INIT;
+}
+async function getCompromisos() {
+  if (DATA_SOURCE === "live") {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/compromisos?select=*&order=fecha.asc`,
+        { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+      );
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(r => ({
+          concepto: r.concepto,
+          fecha: r.fecha?.slice(5).split("-").reverse().join("/"),
+          monto: r.monto, tipo: r.tipo, origen: r.origen,
+          urgente: r.urgente, pagado: r.pagado, _id: r.id,
+        }));
+      }
+    } catch(e) { console.warn("Supabase compromisos error:", e); }
+  }
+  return COMPROMISOS_INIT;
+}
 async function getRecetas()     { return RECETAS; }
 async function getCombos()      { return COMBOS; }
 // ==================================================================================
@@ -1608,7 +1659,19 @@ function VistaMacro({onSwitch}){
   // Carga saldos desde Supabase al montar (en modo live)
   useEffect(()=>{
     if(DATA_SOURCE==="live"){
-      dbGetSaldos().then(s=>{ if(s) setSaldos(s); });
+      fetch(`${SUPABASE_URL}/rest/v1/saldos_caja?select=cuenta,monto`,
+        {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}})
+        .then(r=>r.json())
+        .then(data=>{
+          if(!Array.isArray(data)) return;
+          const s={};
+          data.forEach(r=>{
+            if(r.cuenta==="mercadopago") s.mp=r.monto;
+            if(r.cuenta==="bbva")        s.bbva=r.monto;
+            if(r.cuenta==="efectivo")    s.ef=r.monto;
+          });
+          if(Object.keys(s).length) setSaldos(s);
+        }).catch(e=>console.warn("Supabase saldos error:",e));
     }
   },[]);
   const [editSaldos,setEditSaldos]=useState(false);
