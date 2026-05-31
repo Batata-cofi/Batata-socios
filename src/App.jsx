@@ -1623,7 +1623,16 @@ function VistaDiaria({onSwitch}){
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:13,fontWeight:700,color:c.pagado?C.muted:C.red,marginBottom:4}}>{fmt(c.monto)}</div>
                 {c.pagado ? <span style={{fontSize:11,color:C.green}}>✓ Pagado</span>
-                  : <button onClick={()=>setCompromisos(compromisos.map((x,j)=>j===i?{...x,pagado:true}:x))}
+                  : <button onClick={()=>{
+                    setCompromisos(compromisos.map((x,j)=>j===i?{...x,pagado:true}:x));
+                    if(DATA_SOURCE==="live" && c._id){
+                      fetch(`${SUPABASE_URL}/rest/v1/compromisos?id=eq.${c._id}`,{
+                        method:"PATCH",
+                        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                        body:JSON.stringify({pagado:true,pagado_at:new Date().toISOString(),pagado_by:"Lautaro"})
+                      }).catch(e=>console.warn("Error confirmando pago:",e));
+                    }
+                  }}
                       style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:`1px solid ${C.green}44`,background:C.greenDim,color:C.green,cursor:"pointer",fontWeight:600}}>✓ Confirmar</button>
                 }
               </div>
@@ -1676,6 +1685,51 @@ function VistaMacro({onSwitch}){
   },[]);
   const [editSaldos,setEditSaldos]=useState(false);
   const [compromisos,setCompromisos]=useState(COMPROMISOS_INIT);
+  // Carga compromisos desde Supabase al montar
+  useEffect(()=>{
+    if(DATA_SOURCE==="live"){
+      fetch(`${SUPABASE_URL}/rest/v1/compromisos?select=*&order=fecha.asc`,
+        {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}})
+        .then(r=>r.json())
+        .then(data=>{
+          if(!Array.isArray(data)||!data.length) return;
+          setCompromisos(data.map(r=>({
+            concepto:r.concepto,
+            fecha:r.fecha?.slice(5).split("-").reverse().join("/"),
+            monto:r.monto, tipo:r.tipo, origen:r.origen,
+            urgente:r.urgente, pagado:r.pagado, _id:r.id,
+          })));
+        }).catch(e=>console.warn("Supabase compromisos error:",e));
+    }
+  },[]);
+  // Carga gastos fijos desde Supabase al montar
+  useEffect(()=>{
+    if(DATA_SOURCE==="live"){
+      fetch(`${SUPABASE_URL}/rest/v1/gastos_fijos?select=id,concepto,monto,categoria,icono&activo=eq.true`,
+        {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}})
+        .then(r=>r.json())
+        .then(data=>{
+          if(!Array.isArray(data)||!data.length) return;
+          setGf(data.map(r=>({...r,cat:r.categoria})));
+        }).catch(e=>console.warn("Supabase GF error:",e));
+    }
+  },[]);
+  // Carga stock desde Supabase al montar
+  useEffect(()=>{
+    if(DATA_SOURCE==="live"){
+      fetch(`${SUPABASE_URL}/rest/v1/stock?select=*&order=categoria`,
+        {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}})
+        .then(r=>r.json())
+        .then(data=>{
+          if(!Array.isArray(data)||!data.length) return;
+          setStock(data.map(r=>({
+            item:r.item, u:r.unidad, stock:r.stock_actual,
+            min:r.stock_min, max:r.stock_max, cd:r.consumo_dia,
+            icon:r.icono, cat:r.categoria, prov:r.proveedor,
+          })));
+        }).catch(e=>console.warn("Supabase stock error:",e));
+    }
+  },[]);
   const [notif,setNotif]=useState({});
   const [modalNotif,setModalNotif]=useState(null);
   const [fichaprod,setFichaprod]=useState(null);
@@ -1912,7 +1966,24 @@ function VistaMacro({onSwitch}){
                 <div style={{fontSize:16,fontWeight:700}}>Caja real</div>
                 <div style={{fontSize:11,color:C.muted,marginTop:2}}>Saldos · compromisos · flujo proyectado</div>
               </div>
-              <button onClick={()=>setEditSaldos(!editSaldos)} style={{padding:"6px 14px",fontSize:11,borderRadius:6,border:`1px solid ${editSaldos?C.accent:C.border}`,background:editSaldos?C.accentDim:C.card,color:editSaldos?C.accent:C.muted,cursor:"pointer"}}>
+              <button onClick={()=>{
+                  if(editSaldos && DATA_SOURCE==="live"){
+                    // Guardar saldos en Supabase
+                    const cuentas=[
+                      {cuenta:"mercadopago", monto:saldos.mp},
+                      {cuenta:"bbva",        monto:saldos.bbva},
+                      {cuenta:"efectivo",    monto:saldos.ef},
+                    ];
+                    cuentas.forEach(({cuenta,monto})=>{
+                      fetch(`${SUPABASE_URL}/rest/v1/saldos_caja?cuenta=eq.${cuenta}`,{
+                        method:"PATCH",
+                        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                        body:JSON.stringify({monto,updated_by:"Lautaro",updated_at:new Date().toISOString()})
+                      }).catch(e=>console.warn("Error guardando saldo:",e));
+                    });
+                  }
+                  setEditSaldos(!editSaldos);
+                }} style={{padding:"6px 14px",fontSize:11,borderRadius:6,border:`1px solid ${editSaldos?C.accent:C.border}`,background:editSaldos?C.accentDim:C.card,color:editSaldos?C.accent:C.muted,cursor:"pointer"}}>
                 {editSaldos?"✓ Guardar":"✏️ Actualizar saldos"}
               </button>
             </div>
@@ -1984,7 +2055,18 @@ function VistaMacro({onSwitch}){
                 <div style={{fontSize:16,fontWeight:700}}>Control de stock</div>
                 <div style={{fontSize:11,color:C.muted,marginTop:2}}>{STOCK_INIT.length} insumos · consumo calculado con ventas reales</div>
               </div>
-              <button onClick={()=>setEditStock(!editStock)} style={{padding:"6px 14px",fontSize:11,borderRadius:6,border:`1px solid ${editStock?C.accent:C.border}`,background:editStock?C.accentDim:C.card,color:editStock?C.accent:C.muted,cursor:"pointer"}}>
+              <button onClick={()=>{
+                  if(editStock && DATA_SOURCE==="live"){
+                    stock.forEach(s=>{
+                      fetch(`${SUPABASE_URL}/rest/v1/stock?item=eq.${encodeURIComponent(s.item)}`,{
+                        method:"PATCH",
+                        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                        body:JSON.stringify({stock_actual:s.stock,updated_by:"Lautaro",updated_at:new Date().toISOString()})
+                      }).catch(e=>console.warn("Error guardando stock:",e));
+                    });
+                  }
+                  setEditStock(!editStock);
+                }} style={{padding:"6px 14px",fontSize:11,borderRadius:6,border:`1px solid ${editStock?C.accent:C.border}`,background:editStock?C.accentDim:C.card,color:editStock?C.accent:C.muted,cursor:"pointer"}}>
                 {editStock?"✓ Listo":"✏️ Actualizar"}
               </button>
             </div>
@@ -2632,7 +2714,19 @@ function VistaMacro({onSwitch}){
                 <div style={{fontSize:16,fontWeight:700}}>Configuración</div>
                 <div style={{fontSize:11,color:C.muted,marginTop:2}}>Gastos fijos · actualizar mes a mes</div>
               </div>
-              <button onClick={()=>setEditGF(!editGF)} style={{padding:"7px 16px",fontSize:11,borderRadius:6,border:`1px solid ${editGF?C.accent:C.border}`,background:editGF?C.accentDim:C.card,color:editGF?C.accent:C.muted,cursor:"pointer",fontWeight:600}}>
+              <button onClick={()=>{
+                  if(editGF && DATA_SOURCE==="live"){
+                    // Guardar gastos fijos en Supabase
+                    gf.forEach(g=>{
+                      fetch(`${SUPABASE_URL}/rest/v1/gastos_fijos?id=eq.${g.id}`,{
+                        method:"PATCH",
+                        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+                        body:JSON.stringify({monto:g.monto,updated_by:"Lautaro",updated_at:new Date().toISOString()})
+                      }).catch(e=>console.warn("Error guardando GF:",e));
+                    });
+                  }
+                  setEditGF(!editGF);
+                }} style={{padding:"7px 16px",fontSize:11,borderRadius:6,border:`1px solid ${editGF?C.accent:C.border}`,background:editGF?C.accentDim:C.card,color:editGF?C.accent:C.muted,cursor:"pointer",fontWeight:600}}>
                 {editGF?"✓ Guardar":"✏️ Editar"}
               </button>
             </div>
