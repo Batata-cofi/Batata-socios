@@ -1226,7 +1226,7 @@ function FichaCosto({prod,totalGF,onClose}){
                     <td style={{padding:"7px 10px"}}>{r.ing}</td>
                     <td style={{padding:"7px 10px",textAlign:"center"}}>
                       {editando
-                        ? <input type="number" step="0.5" value={r.gr} onChange={e=>setIngrs(ingrs.map((x,j)=>j===i?{...x,gr:Number(e.target.value)}:x))}
+                        ? <input type="number" step="0.5" value={r.gr} onChange={e=>{const ng=Number(e.target.value);setIngrs(ingrs.map((x,j)=>j===i?{...x,gr:ng,subtotal:ng*x.pu}:x));}}
                             style={{width:60,padding:"3px 6px",fontSize:12,background:C.bg,border:`1px solid ${C.accent}`,borderRadius:5,color:C.text,textAlign:"center"}}/>
                         : r.gr
                       }
