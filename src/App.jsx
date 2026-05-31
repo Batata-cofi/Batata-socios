@@ -20,6 +20,38 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 //   Response: { item: string, stock: number, min: number, max: number }[]
 // ========================
 
+// === ARQUITECTURA BOT DE FACTURAS (WhatsApp → Drive → Tablero) ===
+//
+// FLUJO:
+//   1. Quillen o Lautaro envían foto de factura al grupo de WhatsApp
+//   2. Bot (n8n/Make) recibe el mensaje via WhatsApp Business API
+//   3. Claude API procesa la imagen y extrae: proveedor, productos,
+//      precios unitarios, total, fecha, condición de pago
+//   4. Bot ejecuta 4 acciones en paralelo:
+//      a) Sube factura (PDF/imagen) a Google Drive /facturas/{proveedor}/{mes}/
+//      b) Actualiza precios en hoja "Precios MP" de Google Sheets maestro
+//      c) Añade compromiso de pago al calendario de caja con fecha vencimiento
+//      d) Registra movimiento de proveedores para P&L y punto de equilibrio
+//
+// ENDPOINTS QUE EL TABLERO DEBE EXPONER (futuro):
+//   POST /api/factura-procesada
+//   Body: {
+//     proveedor: string,
+//     fecha: string,           // YYYY-MM-DD
+//     vencimiento: string,     // YYYY-MM-DD
+//     total: number,
+//     items: { producto: string, precio_unitario: number, cantidad: number }[],
+//     drive_url: string,
+//     factura_id: string
+//   }
+//
+// RESPUESTA ESPERADA DEL TABLERO:
+//   { ok: true, actualizaciones: string[] }
+//   Donde actualizaciones lista qué cambió: ["precio_cafe", "caja_junio", ...]
+//
+// ESTADO ACTUAL: pendiente — estructura preparada, sin implementar
+// ================================================================
+
 const DATA_SOURCE = "mock"; // "mock" | "live" — cambiar cuando conecte APIs
 
 // ESTIMADO — reemplazar con dato real de Fudo cuando esté conectado
@@ -29,6 +61,49 @@ const VENTAS_ABRIL = {
   promedioDiario: 572000, // ESTIMADO
   diasOp: 22,             // ESTIMADO
 };
+
+
+// ESTIMADO — reemplazar con API Fudo cuando esté conectado
+const HISTORICO = {
+  // Mayo 2026 (mes actual — se actualiza con datos reales)
+  mayo2026: {
+    sem1: { ventas: 1090090, dias: [751533, 338557], txn: 145 },
+    sem2: { ventas: 3461806, dias: [504607,457196,494976,649637,967666,355069], txn: 445 },
+    sem3: { ventas: 3011632, dias: [644729,625126,427490,586474,796436,557893], txn: 399 },
+    sem4: { ventas: 1285455, dias: [504015,620345,161140], txn: 170 }, // parcial
+  },
+  // Abril 2026 — ESTIMADO
+  abril2026: {
+    total: 19053900,
+    sem1: { ventas: 3900000, txn: 420 },
+    sem2: { ventas: 5200000, txn: 580 },
+    sem3: { ventas: 4800000, txn: 530 },
+    sem4: { ventas: 5153900, txn: 575 },
+    ticketPromedio: 11800,
+  },
+  // Mayo 2025 — ESTIMADO (inflación acumulada ~90%)
+  mayo2025: {
+    total: 8200000,
+    sem1: { ventas: 1680000, txn: 210 },
+    sem2: { ventas: 2230000, txn: 278 },
+    sem3: { ventas: 2060000, txn: 257 },
+    sem4: { ventas: 2230000, txn: 278 },
+    ticketPromedio: 6800,
+  },
+};
+
+// ── Helpers de semana operativa Batata ────────────────────────────
+// Sem 1: días 1-7 | Sem 2: días 8-14 | Sem 3: días 15-21 | Sem 4: días 22-fin
+function getSemanaDelMes(dia) {
+  if (dia <= 7) return 1;
+  if (dia <= 14) return 2;
+  if (dia <= 21) return 3;
+  return 4;
+}
+const HOY = new Date();
+const DIA_ACTUAL = HOY.getDate();
+const SEM_ACTUAL = getSemanaDelMes(DIA_ACTUAL);
+const SEM_KEY = `sem${SEM_ACTUAL}`;
 
 const PASS = "Julia2420";
 const C = {
@@ -556,13 +631,13 @@ const STOCK_INIT = [
 ];
 
 const COMPROMISOS_INIT = [
-  {concepto:"Cargas sociales",           fecha:"22/05",monto:1246698,urgente:true, pagado:false,tipo:"fijo"},
-  {concepto:"Aguinaldo ahorro",          fecha:"22/05",monto:350000, urgente:true, pagado:false,tipo:"fijo"},
-  {concepto:"Alyser — facturas 07+13/05",fecha:"28/05",monto:81544,  urgente:false,pagado:false,tipo:"proveedor"},
-  {concepto:"Alquiler + servicios",      fecha:"01/06",monto:723757,  urgente:false,pagado:false,tipo:"fijo"},
-  {concepto:"Alyser — factura 18/05",   fecha:"08/06",monto:389404,  urgente:false,pagado:false,tipo:"proveedor"},
-  {concepto:"Sueldos empleados",         fecha:"10/06",monto:2806800, urgente:false,pagado:false,tipo:"fijo"},
-  {concepto:"Cargas sociales junio",     fecha:"15/06",monto:1246698, urgente:false,pagado:false,tipo:"fijo"},
+  {concepto:"Cargas sociales",           fecha:"22/05",monto:1246698,urgente:true, pagado:false,tipo:"fijo",origen:"fijo"},
+  {concepto:"Aguinaldo ahorro",          fecha:"22/05",monto:350000, urgente:true, pagado:false,tipo:"fijo",origen:"fijo"},
+  {concepto:"Alyser — facturas 07+13/05",fecha:"28/05",monto:81544,  urgente:false,pagado:false,tipo:"proveedor",origen:"factura"},
+  {concepto:"Alquiler + servicios",      fecha:"01/06",monto:723757,  urgente:false,pagado:false,tipo:"fijo",origen:"fijo"},
+  {concepto:"Alyser — factura 18/05",   fecha:"08/06",monto:389404,  urgente:false,pagado:false,tipo:"proveedor",origen:"factura"},
+  {concepto:"Sueldos empleados",         fecha:"10/06",monto:2806800, urgente:false,pagado:false,tipo:"fijo",origen:"fijo"},
+  {concepto:"Cargas sociales junio",     fecha:"15/06",monto:1246698, urgente:false,pagado:false,tipo:"fijo",origen:"fijo"},
 ];
 
 const MAYO_CAL={
@@ -596,25 +671,107 @@ const COMBOS = [
   {nombre:"S. Veggie + Bebida",    tipo:"Almuerzo",pv:16500,pvSug:null, ct:12429,rent:24.7,u:6, accion:"revisar",nota:"Veggie sale pronto. Planificar reemplazo."},
 ];
 
+
+// ── PLANILLA MAESTRA DE COSTOS ───────────────────────────────────
+// MP extraídos de planillas originales: costos_batata_CAFE_1.xlsx,
+// Costos_comida_1.xlsx, COSTOS_BATATA_Cocina_1.xlsx
+const PLANILLA_COSTOS = {
+  cafe: [
+    {n:"Espresso",          mp:582,  pv:3800, u:22,  cat:"Café"},
+    {n:"Espresso doble",    mp:1002, pv:5000, u:89,  cat:"Café"},
+    {n:"Cortado",           mp:727,  pv:4600, u:74,  cat:"Café"},
+    {n:"Cappuccino",        mp:785,  pv:5000, u:56,  cat:"Café"},
+    {n:"Flat White",        mp:1214, pv:5800, u:248, cat:"Café"},
+    {n:"Cappu Doble",       mp:1279, pv:6000, u:106, cat:"Café"},
+    {n:"Latte",             mp:888,  pv:5600, u:236, cat:"Café"},
+    {n:"Chocolate Caliente",mp:489,  pv:6000, u:16,  cat:"Café"},
+    {n:"Dame Números",      mp:1514, pv:7000, u:27,  cat:"Café"},
+    {n:"Cappusotto",        mp:1220, pv:6200, u:35,  cat:"Café"},
+    {n:"Suaave",            mp:1045, pv:6700, u:53,  cat:"Café"},
+    {n:"Cappu Marplatense", mp:1220, pv:6200, u:14,  cat:"Café"},
+    {n:"Pomelada",          mp:938,  pv:5000, u:49,  cat:"Café"},
+    {n:"Mandarinada",       mp:847,  pv:4700, u:31,  cat:"Café"},
+    {n:"Jugo de Naranja",   mp:1106, pv:4300, u:70,  cat:"Café"},
+    {n:"Limo durazno",      mp:1079, pv:4900, u:46,  cat:"Café"},
+    {n:"Té Woolong",        mp:1669, pv:4900, u:18,  cat:"Café"},
+    {n:"Filtrados",         mp:1816, pv:7500, u:6,   cat:"Café"},
+    {n:"Espresso largo",    mp:582,  pv:5000, u:9,   cat:"Café"},
+    {n:"Americano",         mp:1002, pv:5000, u:60,  cat:"Café"},
+  ],
+  pasteleria: [
+    {n:"Cookie Frambuesa",  mp:628,  pv:4100, u:156, cat:"Pastelería"},
+    {n:"Cookie Pistacho",   mp:1026, pv:4100, u:104, cat:"Pastelería"},
+    {n:"Cookie Chocolate",  mp:1285, pv:5100, u:88,  cat:"Pastelería"},
+    {n:"Alfanuí",           mp:1158, pv:5000, u:56,  cat:"Pastelería"},
+    {n:"Alfajor Nevado",    mp:1397, pv:5200, u:14,  cat:"Pastelería"},
+    {n:"Alfajor Almendras", mp:498,  pv:3800, u:29,  cat:"Pastelería"},
+    {n:"Alfajor Tita",      mp:623,  pv:3800, u:25,  cat:"Pastelería"},
+    {n:"Budín Limón",       mp:833,  pv:4200, u:44,  cat:"Pastelería"},
+    {n:"Budín Banana",      mp:797,  pv:4200, u:27,  cat:"Pastelería"},
+    {n:"Chipa",             mp:839,  pv:4000, u:208, cat:"Pastelería"},
+    {n:"Cheesecake",        mp:2367, pv:8500, u:33,  cat:"Pastelería esp."},
+    {n:"Vasca de DDL",      mp:2388, pv:8000, u:27,  cat:"Pastelería esp."},
+    {n:"Key Lime",          mp:2747, pv:7900, u:16,  cat:"Pastelería esp."},
+    {n:"Sniker",            mp:1670, pv:5600, u:22,  cat:"Pastelería esp."},
+    {n:"Rol de Canela",     mp:275,  pv:3500, u:12,  cat:"Pastelería esp."},
+    {n:"Cookie Vegana",     mp:800,  pv:4100, u:3,   cat:"Pastelería"},
+    {n:"Medialuna",         mp:900,  pv:3800, u:133, cat:"Pastelería"},
+  ],
+  cocina: [
+    {n:"Tostón de Palta",       mp:2464, pv:10000, u:50, cat:"Cocina"},
+    {n:"Tostón de Perso",       mp:1828, pv:9000,  u:8,  cat:"Cocina"},
+    {n:"Tostado JyQ",           mp:2094, pv:8500,  u:46, cat:"Cocina"},
+    {n:"Tostado Capresse",      mp:1759, pv:8500,  u:25, cat:"Cocina"},
+    {n:"Tostadas",              mp:1080, pv:7500,  u:6,  cat:"Cocina"},
+    {n:"Sandwich Mortadela",    mp:3042, pv:12500, u:21, cat:"Cocina"},
+    {n:"Chipa prensado LyQ",    mp:1621, pv:8000,  u:47, cat:"Cocina"},
+    {n:"Chipa prensado Cap.",   mp:1643, pv:8000,  u:47, cat:"Cocina"},
+    {n:"Medialuna Capresse",    mp:2518, pv:9500,  u:13, cat:"Cocina"},
+    {n:"Medialuna rellena LyQ", mp:2543, pv:9500,  u:27, cat:"Cocina"},
+    {n:"Yogurt Casero",         mp:2094, pv:9200,  u:4,  cat:"Cocina"},
+    {n:"Pancakes",              mp:1800, pv:11000, u:7,  cat:"Cocina"},
+  ],
+};
+
 // ── HELPERS ───────────────────────────────────────────────────────
 const Pill=({label,color})=>(<span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:`${color}22`,color,border:`1px solid ${color}44`,fontWeight:600}}>{label}</span>);
 const SL=({children})=>(<div style={{fontSize:10,fontWeight:600,color:C.muted,letterSpacing:".05em",textTransform:"uppercase",margin:"1.25rem 0 .6rem"}}>{children}</div>);
-const KPI=({label,value,sub,color,borde,prev,rawValue})=>{
+const KPI=({label,value,sub,color,borde,prev,rawValue,comparaciones})=>{
   let varPct=null, varDir=null;
   if(prev!=null && rawValue!=null && prev>0){
     varPct=((rawValue-prev)/prev*100);
     varDir=varPct>=0?"↑":"↓";
   }
+  const fmtComp=(val,ref)=>{
+    if(ref==null||ref===0) return {txt:"— sin dato",col:C.muted};
+    const pct=((val-ref)/ref*100);
+    if(Math.abs(pct)<0.5) return {txt:"≈ igual",col:C.muted};
+    const dir=pct>=0?"↑":"↓";
+    return {txt:`${dir}${Math.abs(pct).toFixed(1)}%`,col:pct>=0?C.green:C.red};
+  };
   return(
     <div style={{background:C.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${borde?borde+"44":C.border}`}}>
       <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{label}</div>
       <div style={{fontSize:18,fontWeight:700,color:color||C.text}}>{value}</div>
-      {varPct!=null&&(
+      {varPct!=null&&!comparaciones&&(
         <div style={{fontSize:10,marginTop:3,color:varDir==="↑"?C.green:C.red,fontWeight:600}}>
           {varDir} {Math.abs(varPct).toFixed(1)}% vs abril
         </div>
       )}
-      {sub&&!varPct&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}
+      {sub&&!varPct&&!comparaciones&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}
+      {comparaciones&&comparaciones.length>0&&(
+        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:5}}>
+          {comparaciones.map((c,i)=>{
+            const {txt,col}=rawValue!=null?fmtComp(rawValue,c.ref):{txt:c.valor||"— sin dato",col:c.color||C.muted};
+            return(
+              <span key={i} style={{fontSize:10,color:col,whiteSpace:"nowrap"}}>
+                {i>0&&<span style={{color:C.dim,marginRight:3}}>·</span>}
+                <span style={{color:C.muted}}>{c.label}: </span>{txt}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -1105,6 +1262,7 @@ function VistaMacro({onSwitch}){
     {id:"stock",    label:"Stock",    icon:"▦"},
     {id:"menu",     label:"Menú",     icon:"◉"},
     {id:"costos",   label:"Costos",   icon:"∑"},
+    {id:"planilla", label:"Planilla", icon:"📋"},
     {id:"resultado",label:"Resultado",icon:"≡"},
     {id:"config",   label:"Config",   icon:"⚙"},
   ];
@@ -1115,6 +1273,14 @@ function VistaMacro({onSwitch}){
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"Georgia,serif",padding:"0 0 40px"}}>
       {fichaprod&&<FichaCosto prod={fichaprod} totalGF={totalGF} onClose={()=>setFichaprod(null)}/>}
+      {/* Botón flotante Planilla — acceso desde cualquier solapa */}
+      {tab!=="planilla"&&(
+        <div title="Ver planilla de costos"
+          onClick={()=>setTab("planilla")}
+          style={{position:"fixed",bottom:28,right:24,width:48,height:48,borderRadius:"50%",background:C.accent,color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 4px 16px rgba(0,0,0,.5)",zIndex:200,border:`2px solid ${C.accent}88`}}>
+          📋
+        </div>
+      )}
       {modalNotif&&(
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
           <div style={{background:C.card,borderRadius:12,padding:24,width:300,border:`1px solid ${C.border}`}}>
@@ -1159,17 +1325,39 @@ function VistaMacro({onSwitch}){
               <div style={{fontSize:13,color:C.muted}}>Mayo 2026 · {diasOp} días operados</div>
               <div style={{fontSize:24,fontWeight:700,marginTop:2}}>Estado del negocio</div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:20}}>
-              <KPI label="Ventas acumuladas"  value={fmtK(ventas)}    sub={`${diasOp} días`}   color={C.green}
-                prev={VENTAS_ABRIL.total} rawValue={ventas}/>
-              <KPI label="Proyección mayo"    value={fmtK(proyMes)}   color={C.text}
-                prev={VENTAS_ABRIL.total} rawValue={proyMes}/>
-              <KPI label="Ticket promedio"    value={fmt(Math.round(ventas/txnTotal))} sub="obj: $13.000" color={C.accent}
-                prev={VENTAS_ABRIL.ticketPromedio} rawValue={Math.round(ventas/txnTotal)}/>
-              <KPI label="Resultado neto est." value={fmtK(resultadoNeto)} sub="después de sueldos" color={resultadoNeto>0?C.green:C.red} borde={resultadoNeto>0?C.green:C.red}
-                />
-              <KPI label="Punto de equilibrio" value={fmtK(breakeven)} sub="necesitás facturar esto" color={C.blue}/>
-            </div>
+            {(()=>{
+              const ventasSem=HISTORICO.mayo2026[SEM_KEY]?.ventas||0;
+              const semAbril=HISTORICO.abril2026[SEM_KEY]?.ventas||null;
+              const semMayo25=HISTORICO.mayo2025[SEM_KEY]?.ventas||null;
+              const txnSem=HISTORICO.mayo2026[SEM_KEY]?.txn||1;
+              return(
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:20}}>
+                <KPI label="Ventas acumuladas"  value={fmtK(ventas)} color={C.green} rawValue={ventas}
+                  comparaciones={[
+                    {label:"vs sem equiv. abr",ref:HISTORICO.abril2026[SEM_KEY]?.ventas},
+                    {label:"vs sem equiv. may25",ref:HISTORICO.mayo2025[SEM_KEY]?.ventas},
+                  ]}/>
+                <KPI label={`Semana ${SEM_ACTUAL} de mayo`} value={fmtK(ventasSem)} color={C.accent} rawValue={ventasSem}
+                  comparaciones={[
+                    {label:"vs sem abr",ref:semAbril},
+                    {label:"vs sem may25",ref:semMayo25},
+                  ]}/>
+                <KPI label="Proyección mayo" value={fmtK(proyMes)} color={C.text} rawValue={proyMes}
+                  comparaciones={[
+                    {label:"vs total abr",ref:HISTORICO.abril2026.total},
+                    {label:"vs total may25",ref:HISTORICO.mayo2025.total},
+                  ]}/>
+                <KPI label="Ticket promedio" value={fmt(Math.round(ventas/txnTotal))} color={C.accent} sub="obj: $13.000"
+                  rawValue={Math.round(ventas/txnTotal)}
+                  comparaciones={[
+                    {label:"vs abr",ref:HISTORICO.abril2026.ticketPromedio},
+                    {label:"vs may25",ref:HISTORICO.mayo2025.ticketPromedio},
+                  ]}/>
+                <KPI label="Resultado neto est." value={fmtK(resultadoNeto)} sub="después de sueldos" color={resultadoNeto>0?C.green:C.red} borde={resultadoNeto>0?C.green:C.red}/>
+                <KPI label="Punto de equilibrio" value={fmtK(breakeven)} sub="necesitás facturar esto" color={C.blue}/>
+              </div>
+              );
+            })()}
             <div style={{background:C.card,borderRadius:12,padding:"18px 16px",border:`1px solid ${C.border}`,marginBottom:16}}>
               <div style={{fontSize:12,fontWeight:600,marginBottom:6}}>Ventas diarias — Mayo 2026</div>
               <div style={{display:"flex",gap:12,marginBottom:10}}>
@@ -1186,7 +1374,10 @@ function VistaMacro({onSwitch}){
                   <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
                   <XAxis dataKey="f" tick={{fontSize:8,fill:C.muted}} tickLine={false} axisLine={false} interval={2}/>
                   <YAxis tick={{fontSize:9,fill:C.muted}} tickLine={false} axisLine={false} tickFormatter={v=>v>0?`$${Math.round(v/1000)}k`:""}/>
-                  <Tooltip formatter={v=>[v>0?fmt(v):"Sin operación","Ventas"]} labelFormatter={l=>`Día ${l} — ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(2026,4,parseInt(l)).getDay()]}`} contentStyle={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}/>
+                  <Tooltip
+                    formatter={v=>[v>0?fmt(v):"Sin operación","Ventas"]}
+                    labelFormatter={l=>{const d=parseInt(l);const dn=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(2026,4,d).getDay()];const sn=getSemanaDelMes(d);return <span>{`Día ${dn}`}<br/><span style={{color:C.muted,fontSize:10}}>{`Sem. ${sn} del mes`}</span></span>;}}
+                    contentStyle={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}/>
                   <Area type="monotone" dataKey="v" stroke={C.accent} fill="url(#g1)" strokeWidth={2} dot={false}/>
                   <ReferenceLine y={breakevenDiario} stroke={C.blue} strokeDasharray="4 4" strokeWidth={1.5}
                     label={{value:`Meta ${Math.round(breakevenDiario/1000)}k`,position:"insideTopRight",fontSize:9,fill:C.blue}}/>
@@ -1322,9 +1513,11 @@ function VistaMacro({onSwitch}){
                 <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<compromisos.length-1?`1px solid ${C.border}`:"none",opacity:c.pagado?.5:1}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:600,color:c.pagado?C.muted:C.text}}>{c.concepto}</div>
-                    <div style={{fontSize:11,color:C.muted,marginTop:2,display:"flex",gap:6,alignItems:"center"}}>
+                    <div style={{fontSize:11,color:C.muted,marginTop:2,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
                       {c.fecha} · {c.tipo}
                       {c.urgente&&!c.pagado&&<span style={{background:C.redDim,color:C.red,fontSize:10,padding:"1px 6px",borderRadius:10}}>Urgente</span>}
+                      {c.origen==="factura"&&<span style={{background:"#d4845a22",color:"#d4845a",fontSize:10,padding:"1px 6px",borderRadius:10,border:"1px solid #d4845a44"}}>📄 Factura</span>}
+                      {c.origen==="fijo"&&<span style={{background:C.card2,color:C.muted,fontSize:10,padding:"1px 6px",borderRadius:10,border:`1px solid ${C.border}`}}>🔁 Fijo</span>}
                     </div>
                   </div>
                   <div style={{textAlign:"right"}}>
@@ -1575,8 +1768,101 @@ function VistaMacro({onSwitch}){
                 </div>
               );
             })}
+            <div style={{marginTop:20,textAlign:"center"}}>
+              <button onClick={()=>setTab("planilla")}
+                style={{padding:"10px 22px",fontSize:12,borderRadius:8,border:`1px solid ${C.accent}44`,background:C.accentDim,color:C.accent,cursor:"pointer",fontWeight:600}}>
+                📋 Ver planilla completa
+              </button>
+            </div>
           </div>
         )}
+
+        {/* ═══ PLANILLA ═══ */}
+        {tab==="planilla"&&(()=>{
+          const allProds=[...PLANILLA_COSTOS.cafe,...PLANILLA_COSTOS.pasteleria,...PLANILLA_COSTOS.cocina];
+          const grupos=["Café","Pastelería","Pastelería esp.","Cocina"];
+          return(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700}}>Planilla maestra de costos</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>Todos los productos · MP de planillas originales · cálculos en tiempo real</div>
+                </div>
+              </div>
+              {grupos.map(cat=>{
+                const items=allProds.filter(p=>p.cat===cat);
+                if(!items.length) return null;
+                const catC=cat==="Café"?C.blue:cat.includes("Past")?C.accent:C.green;
+                const promRent=(items.reduce((s,p)=>{
+                  const gfu=p.pv*totalGF/FACT_BASE;
+                  const iibb=p.pv*0.015;
+                  const tc=p.pv*0.0501;
+                  const ct=p.mp+gfu+iibb+tc;
+                  return s+(p.pv-ct)/p.pv*100;
+                },0)/items.length).toFixed(1);
+                return(
+                  <div key={cat} style={{marginBottom:24}}>
+                    <div style={{background:C.card2,borderRadius:8,padding:"8px 14px",marginBottom:8,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:12,fontWeight:700,color:catC}}>{cat}</span>
+                      <span style={{fontSize:11,color:C.muted}}>{items.length} productos · rent. prom. {promRent}%</span>
+                    </div>
+                    <div style={{background:C.card,borderRadius:12,border:`1px solid ${C.border}`,overflow:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:750}}>
+                        <thead>
+                          <tr style={{background:C.card2}}>
+                            {["Producto","Mat. Prima","GFU","IIBB (1.5%)","Tarjeta (5%)","Costo Total","PV","Rent. %","Uds/mes",""].map(h=>(
+                              <th key={h} style={{textAlign:"left",padding:"7px 9px",fontSize:10,color:C.muted,fontWeight:600,borderBottom:`1px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((p,i)=>{
+                            const gfu=p.pv*totalGF/FACT_BASE;
+                            const iibb=p.pv*0.015;
+                            const tc=p.pv*0.0501;
+                            const ct=p.mp+gfu+iibb+tc;
+                            const rent=(p.pv-ct)/p.pv*100;
+                            const rentC=rent>30?C.green:rent>20?C.yellow:C.red;
+                            const rankProd=RANKING.find(r=>r.n===p.n||r.n.toLowerCase().includes(p.n.toLowerCase().split(" ")[0]));
+                            return(
+                              <tr key={i} style={{borderBottom:`1px solid ${C.border}22`,background:i%2===0?"transparent":C.card2}}>
+                                <td style={{padding:"7px 9px",fontWeight:600}}>{p.n}</td>
+                                <td style={{padding:"7px 9px",color:C.muted}}>{fmt(p.mp)}</td>
+                                <td style={{padding:"7px 9px",color:C.muted}}>{fmt(gfu)}</td>
+                                <td style={{padding:"7px 9px",color:C.muted}}>{fmt(iibb)}</td>
+                                <td style={{padding:"7px 9px",color:C.muted}}>{fmt(tc)}</td>
+                                <td style={{padding:"7px 9px",fontWeight:600}}>{fmt(ct)}</td>
+                                <td style={{padding:"7px 9px"}}>{fmt(p.pv)}</td>
+                                <td style={{padding:"7px 9px"}}>
+                                  <span style={{fontWeight:700,color:rentC}}>{rent.toFixed(1)}%</span>
+                                </td>
+                                <td style={{padding:"7px 9px",color:C.muted}}>{p.u}</td>
+                                <td style={{padding:"7px 9px"}}>
+                                  {rankProd&&<button onClick={()=>setFichaprod(rankProd)}
+                                    style={{fontSize:10,padding:"3px 7px",borderRadius:6,border:`1px solid ${C.border}`,background:C.card2,color:C.muted,cursor:"pointer",whiteSpace:"nowrap"}}>
+                                    Ver receta
+                                  </button>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr style={{borderTop:`1px solid ${C.border}`,background:C.card2}}>
+                            <td style={{padding:"7px 9px",fontWeight:700,color:catC}}>Total {cat}</td>
+                            <td style={{padding:"7px 9px",color:C.muted,fontSize:10}}>{fmt(items.reduce((s,p)=>s+p.mp,0)/items.length)} prom.</td>
+                            <td colSpan={5}/>
+                            <td style={{padding:"7px 9px",fontWeight:700,color:catC}}>{promRent}%</td>
+                            <td style={{padding:"7px 9px",color:C.muted}}>{items.reduce((s,p)=>s+p.u,0)} uds</td>
+                            <td/>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ═══ RESULTADO ═══ */}
         {tab==="resultado"&&(()=>{
