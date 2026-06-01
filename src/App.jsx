@@ -531,11 +531,9 @@ const RANKING = [
   {n:"Cheesecake",        u:33, cat:"Pastelería",rent:20.9,pv:8500, mp:2367,accion:"ok"},
   {n:"Sniker",            u:22, cat:"Pastelería",rent:19.0,pv:5600, mp:1670,accion:"ok"},
   {n:"Alfajor Tita",      u:22, cat:"Pastelería",rent:32.4,pv:3800, mp:623, accion:"potenciar"},
-  {n:"Brownie Noelito",   u:20, cat:"Pastelería",rent:22.0,pv:5600, mp:1670,accion:"ok"},
   {n:"Mandarinada",       u:18, cat:"Café",      rent:30.8,pv:4700, mp:847, accion:"potenciar"},
   {n:"Té Woolong",        u:18, cat:"Café",      rent:14.7,pv:4900, mp:1669,accion:"revisar"},
   {n:"Cappu Marplatense", u:14, cat:"Café",      rent:29.1,pv:6200, mp:1220,accion:"potenciar"},
-  {n:"Trenzas",           u:16, cat:"Pastelería",rent:22.0,pv:5000, mp:1200,accion:"ok"},
   {n:"Vasca de DDL",      u:10, cat:"Pastelería",rent:18.9,pv:8000, mp:2388,accion:"ok"},
   {n:"Key Lime",          u:8,  cat:"Pastelería",rent:14.0,pv:7900, mp:2747,accion:"revisar"},
   {n:"Tostón de Perso",   u:8,  cat:"Cocina",    rent:13.0,pv:9200, mp:1828,accion:"subir",pvSug:10500},
@@ -547,8 +545,6 @@ const RANKING = [
   {n:"Tostadas",          u:6,  cat:"Cocina",    rent:16.0,pv:7500, mp:1080,accion:"subir",pvSug:8500},
   {n:"Yogurt",            u:4,  cat:"Cocina",    rent:15.3,pv:9200, mp:2094,accion:"ok"},
   {n:"Cookie Vegana",     u:3,  cat:"Pastelería",rent:22.0,pv:4100, mp:800, accion:"ok"},
-  {n:"Tostada saludable", u:3,  cat:"Cocina",    rent:12.0,pv:7500, mp:1200,accion:"revisar"},
-  {n:"Sandwich Bondio",   u:5,  cat:"Cocina",    rent:25.0,pv:19000,mp:8500,accion:"revisar"},
 ];
 
 // ── RECETAS — precios reales de planillas de costos ─────────────
@@ -618,7 +614,7 @@ const RECETAS = {
     {ing:"Pimienta rosa",        gr:1,    pu:36.0,    u:"gr",  subtotal:36},
     {ing:"Vaso take away",       gr:1,    pu:162.61,  u:"u",   subtotal:162.61},
   ],
-  "Choco Caliente": [
+  "Chocolate Caliente": [
     {ing:"Chocolate amargo",     gr:30,   pu:26.265,  u:"gr",  subtotal:787.95},
     {ing:"Batata horneada",      gr:20,   pu:2.1,     u:"gr",  subtotal:42},
     {ing:"Leche entera (140ml)", gr:140,  pu:1.31629, u:"ml",  subtotal:184.28},
@@ -855,22 +851,103 @@ const RECETAS = {
     {ing:"Tomate perita",        gr:40,   pu:4.0,     u:"gr", subtotal:160},
     {ing:"Pesto Divina Oliva",   gr:20,   pu:10.1,    u:"gr", subtotal:202},
   ],
-  "Chipa prensado": [
+  "Chipa prensado LyQ": [
     {ing:"Chipa (base cocida)",  gr:120,  pu:6.99,    u:"gr", subtotal:839},
     {ing:"Lomito ahumado",       gr:40,   pu:18.2,    u:"gr", subtotal:728},
     {ing:"Queso Gouda",          gr:30,   pu:19.643,  u:"gr", subtotal:589.30},
   ],
-  "Medialuna rellena": [
+  "Medialuna rellena LyQ": [
     {ing:"Medialuna",            gr:1,    pu:1900.0,  u:"u",  subtotal:1900},
     {ing:"Lomito ahumado",       gr:40,   pu:18.2,    u:"gr", subtotal:728},
     {ing:"Queso Gouda",          gr:30,   pu:19.643,  u:"gr", subtotal:589.30},
   ],
-  "Yogurt": [
+  "Yogurt Casero": [
     {ing:"Yogurt griego",        gr:180,  pu:10.833,  u:"gr", subtotal:1950},
     {ing:"Granola casera",       gr:30,   pu:24.595,  u:"gr", subtotal:737.85},
     {ing:"Miel",                 gr:15,   pu:16.0,    u:"gr", subtotal:240},
     {ing:"Fruta de estación",    gr:60,   pu:6.0,     u:"gr", subtotal:360},
   ],
+  // ── COCINA ADICIONAL ──────────────────────────────────────────
+  "Chipa prensado Cap.": [
+    {ing:"Chipa (base cocida)",  gr:120,  pu:6.99,    u:"gr", subtotal:839},
+    {ing:"Queso Gouda",          gr:40,   pu:19.643,  u:"gr", subtotal:785.73},
+    {ing:"Tomate perita",        gr:40,   pu:4.0,     u:"gr", subtotal:160},
+    {ing:"Albahaca",             gr:0.15, pu:1500.0,  u:"u",  subtotal:225},
+  ],
+  "Medialuna Capresse": [
+    {ing:"Medialuna",            gr:1,    pu:1900.0,  u:"u",  subtotal:1900},
+    {ing:"Tomate perita",        gr:60,   pu:4.0,     u:"gr", subtotal:240},
+    {ing:"Queso Reggianito",     gr:40,   pu:14.665,  u:"gr", subtotal:586.61},
+    {ing:"Albahaca",             gr:0.15, pu:1500.0,  u:"u",  subtotal:225},
+    {ing:"Aceite de oliva",      gr:8,    pu:18.5,    u:"gr", subtotal:148},
+  ],
+  "Medialuna": [
+    {ing:"Medialuna (x unidad)",  gr:1,  pu:1900.0, u:"u",  subtotal:1900},
+  ],
+  "Limo durazno": [
+    {ing:"Limón (jugo)",          gr:80,  pu:3.5,    u:"gr", subtotal:280},
+    {ing:"Durazno (almíbar)",     gr:120, pu:6.0,    u:"gr", subtotal:720},
+    {ing:"Jengibre",              gr:2,   pu:36.0,   u:"gr", subtotal:72},
+    {ing:"Almíbar",               gr:2,   pu:4.0,    u:"gr", subtotal:8},
+    {ing:"Vaso take away",        gr:1,   pu:162.61, u:"u",  subtotal:162.61},
+  ],
+  // ── PASTELERÍA ESPECIAL ───────────────────────────────────────
+  "Cheesecake": [
+    {ing:"Queso crema",           gr:200, pu:7.5148, u:"gr", subtotal:1502.96},
+    {ing:"Crema de leche",        gr:80,  pu:12.65792,u:"gr",subtotal:1012.63},
+    {ing:"Azúcar común",          gr:80,  pu:1.9584, u:"gr", subtotal:156.67},
+    {ing:"Huevos",                gr:2,   pu:250.0,  u:"u",  subtotal:500},
+    {ing:"Galletas Lincoln (base)",gr:60, pu:10.483, u:"gr", subtotal:628.97},
+    {ing:"Manteca (base)",        gr:40,  pu:13.285, u:"gr", subtotal:531.42},
+    {ing:"Frambuesas (salsa)",    gr:60,  pu:22.0,   u:"gr", subtotal:1320},
+  ],
+  "Vasca de DDL": [
+    {ing:"DDL Vacalin",           gr:200, pu:4.00752,u:"gr", subtotal:801.5},
+    {ing:"Queso crema",           gr:120, pu:7.5148, u:"gr", subtotal:901.78},
+    {ing:"Crema de leche",        gr:80,  pu:12.65792,u:"gr",subtotal:1012.63},
+    {ing:"Galletas Lincoln (base)",gr:60, pu:10.483, u:"gr", subtotal:628.97},
+    {ing:"Manteca (base)",        gr:40,  pu:13.285, u:"gr", subtotal:531.42},
+  ],
+  "Key Lime": [
+    {ing:"Leche condensada",      gr:150, pu:13.66,  u:"gr", subtotal:2049},
+    {ing:"Jugo de lima/limón",    gr:100, pu:3.5,    u:"gr", subtotal:350},
+    {ing:"Crema de leche",        gr:60,  pu:12.65792,u:"gr",subtotal:759.48},
+    {ing:"Galletas Lincoln (base)",gr:60, pu:10.483, u:"gr", subtotal:628.97},
+    {ing:"Manteca (base)",        gr:40,  pu:13.285, u:"gr", subtotal:531.42},
+    {ing:"Ralladura de limón",    gr:5,   pu:3.5,    u:"gr", subtotal:17.5},
+  ],
+  "Sniker": [
+    {ing:"Chocolate amargo (baño)",gr:50, pu:26.265, u:"gr", subtotal:1313.25},
+    {ing:"Pasta de maní",         gr:60,  pu:8.0,    u:"gr", subtotal:480},
+    {ing:"DDL Vacalin",           gr:40,  pu:4.00752,u:"gr", subtotal:160.3},
+    {ing:"Maní tostado",          gr:30,  pu:4.321,  u:"gr", subtotal:129.63},
+  ],
+  "Rol de Canela": [
+    {ing:"Harina 0000",           gr:80,  pu:1.49072,u:"gr", subtotal:119.26},
+    {ing:"Manteca",               gr:20,  pu:13.285, u:"gr", subtotal:265.70},
+    {ing:"Azúcar común",          gr:15,  pu:1.9584, u:"gr", subtotal:29.38},
+    {ing:"Canela molida",         gr:5,   pu:36.0,   u:"gr", subtotal:180},
+    {ing:"Levadura seca",         gr:3,   pu:17.361, u:"gr", subtotal:52.08},
+    {ing:"Leche entera (40ml)",   gr:40,  pu:1.31629,u:"ml", subtotal:52.65},
+    {ing:"Huevo",                 gr:1,   pu:250.0,  u:"u",  subtotal:250},
+  ],
+  "Cookie Vegana": [
+    {ing:"Harina 0000",           gr:80,  pu:1.49072,u:"gr", subtotal:119.26},
+    {ing:"Pasta de maní",         gr:50,  pu:8.0,    u:"gr", subtotal:400},
+    {ing:"Azúcar mascabo",        gr:40,  pu:3.3759, u:"gr", subtotal:135.04},
+    {ing:"Aceite de coco",        gr:30,  pu:19.444, u:"gr", subtotal:583.33},
+    {ing:"Linaza molida",         gr:15,  pu:2.496,  u:"gr", subtotal:37.44},
+  ],
+  "Pancakes": [
+    {ing:"Premezcla sin TACC",    gr:60,  pu:9.0,    u:"gr", subtotal:540},
+    {ing:"Harina de almendras",   gr:30,  pu:19.2,   u:"gr", subtotal:576},
+    {ing:"Huevos",                gr:1,   pu:250.0,  u:"u",  subtotal:250},
+    {ing:"Leche de almendras (40ml)",gr:40,pu:1.947, u:"ml", subtotal:77.88},
+    {ing:"DDL Vacalin (relleno)", gr:40,  pu:4.00752,u:"gr", subtotal:160.3},
+    {ing:"Aceite de girasol",     gr:15,  pu:4.352,  u:"gr", subtotal:65.28},
+    {ing:"Granola",               gr:20,  pu:24.595, u:"gr", subtotal:491.90},
+  ],
+
 };
 
 // ── GASTOS FIJOS// ── GASTOS FIJOS ─────────────────────────────────────────────────
