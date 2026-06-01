@@ -2115,11 +2115,10 @@ function VistaMacro({onSwitch}){
               <button onClick={()=>{
                   if(editStock && DATA_SOURCE==="live"){
                     stock.forEach(s=>{
-                      if(!s._id) return; // solo guarda items que vinieron de Supabase
-                      fetch(`${SUPABASE_URL}/rest/v1/stock?id=eq.${s._id}`,{
+                      fetch(`${SUPABASE_URL}/rest/v1/stock?item=eq.${encodeURIComponent(s.item)}`,{
                         method:"PATCH",
                         headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-                        body:JSON.stringify({stock_actual:s.stock,updated_by:"Lautaro",updated_at:new Date().toISOString()})
+                        body:JSON.stringify({stock_actual:Number(s.stock),updated_by:"Lautaro",updated_at:new Date().toISOString()})
                       }).catch(e=>console.warn("Error guardando stock:",e));
                     });
                   }
