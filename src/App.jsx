@@ -80,12 +80,12 @@ const VENTAS_ABRIL = {
 
 // ESTIMADO — reemplazar con API Fudo cuando esté conectado
 const HISTORICO = {
-  // Mayo 2026 (mes actual — se actualiza con datos reales)
+  // Mayo 2026 — datos reales Fudo (25 días al 30/05, falta 31/05 Dom)
   mayo2026: {
-    sem1: { ventas: 1090090, dias: [751533, 338557], txn: 145 },
-    sem2: { ventas: 3461806, dias: [504607,457196,494976,649637,967666,355069], txn: 445 },
-    sem3: { ventas: 3011632, dias: [644729,625126,427490,586474,796436,557893], txn: 399 },
-    sem4: { ventas: 1285455, dias: [504015,620345,161140], txn: 170 }, // parcial
+    sem1: { ventas: 2546400,  dias: [751400,338500,504500,457100,494900],                             txn: 155 },
+    sem2: { ventas: 3669000,  dias: [649500,967500,355000,644600,625000,427400],                      txn: 234 },
+    sem3: { ventas: 3660250,  dias: [586350,796300,557800,503900,620200,595700],                      txn: 242 },
+    sem4: { ventas: 4919300,  dias: [491100,670800,534600,511400,460000,459500,851400,940500],        txn: 322 }, // completa al 30/05
   },
   // Abril 2026 — ESTIMADO
   abril2026: {
@@ -215,45 +215,45 @@ const SEMANA_MOCK = {
 // ── MOCK — distribución horaria mayo 2026 (datos reales Fudo export) ──
 // Fuente: Reporte-Ventas_1_.xlsx procesado — promedios por día de semana y hora
 const HORARIO_MOCK = {
+  // ── Mayo 2026 — promedios reales Fudo (25 días: 4 Mar/Mié/Jue/Vie/Dom · 5 Sáb) ──
   "2026-5": [
-    // [dow(1=Mar..6=Dom), hora, ventasProm, personasProm]
-    // Martes
-    {dow:1,nom:"Martes", hora:8,  v:23075,p:1.0},{dow:1,nom:"Martes", hora:9,  v:34750,p:3.0},
+    // Martes (4 días: 06,13,20,27)
+    {dow:1,nom:"Martes", hora:8,  v:30766,p:1.3},{dow:1,nom:"Martes", hora:9,  v:34750,p:3.0},
     {dow:1,nom:"Martes", hora:10, v:78650,p:6.0},{dow:1,nom:"Martes", hora:11, v:52825,p:5.0},
-    {dow:1,nom:"Martes", hora:12, v:12075,p:1.0},{dow:1,nom:"Martes", hora:13, v:7325, p:1.0},
-    {dow:1,nom:"Martes", hora:14, v:26000,p:1.8},{dow:1,nom:"Martes", hora:15, v:27525,p:2.8},
+    {dow:1,nom:"Martes", hora:12, v:16100,p:1.3},{dow:1,nom:"Martes", hora:13, v:14650,p:2.0},
+    {dow:1,nom:"Martes", hora:14, v:34666,p:2.3},{dow:1,nom:"Martes", hora:15, v:36700,p:3.7},
     {dow:1,nom:"Martes", hora:16, v:57850,p:3.0},{dow:1,nom:"Martes", hora:17, v:153825,p:10.8},
-    {dow:1,nom:"Martes", hora:18, v:63100,p:4.0},{dow:1,nom:"Martes", hora:19, v:4100, p:0.5},
-    // Miércoles
-    {dow:2,nom:"Miércoles",hora:8, v:9575, p:1.0},{dow:2,nom:"Miércoles",hora:9, v:36075,p:3.0},
+    {dow:1,nom:"Martes", hora:18, v:63100,p:4.0},{dow:1,nom:"Martes", hora:19, v:8200, p:1.0},
+    // Miércoles (4 días: 07,14,21,28)
+    {dow:2,nom:"Miércoles",hora:8, v:12766,p:1.3},{dow:2,nom:"Miércoles",hora:9, v:36075,p:3.0},
     {dow:2,nom:"Miércoles",hora:10,v:34450,p:2.5},{dow:2,nom:"Miércoles",hora:11,v:38925,p:2.5},
-    {dow:2,nom:"Miércoles",hora:12,v:24675,p:2.0},{dow:2,nom:"Miércoles",hora:13,v:38950,p:2.5},
+    {dow:2,nom:"Miércoles",hora:12,v:32900,p:2.7},{dow:2,nom:"Miércoles",hora:13,v:38950,p:2.5},
     {dow:2,nom:"Miércoles",hora:14,v:11450,p:1.0},{dow:2,nom:"Miércoles",hora:15,v:43450,p:3.5},
     {dow:2,nom:"Miércoles",hora:16,v:93600,p:5.2},{dow:2,nom:"Miércoles",hora:17,v:130850,p:10.2},
-    {dow:2,nom:"Miércoles",hora:18,v:73875,p:4.8},{dow:2,nom:"Miércoles",hora:19,v:4700,p:0.2},
-    // Jueves
-    {dow:3,nom:"Jueves",hora:8, v:7900, p:0.8},{dow:3,nom:"Jueves",hora:9, v:20450,p:1.8},
+    {dow:2,nom:"Miércoles",hora:18,v:73875,p:4.8},{dow:2,nom:"Miércoles",hora:19,v:18800,p:1.0},
+    // Jueves (4 días: 08,15,22,29)
+    {dow:3,nom:"Jueves",hora:8, v:10533,p:1.0},{dow:3,nom:"Jueves",hora:9, v:20450,p:1.8},
     {dow:3,nom:"Jueves",hora:10,v:63075,p:3.8},{dow:3,nom:"Jueves",hora:11,v:42275,p:2.2},
-    {dow:3,nom:"Jueves",hora:12,v:30125,p:2.2},{dow:3,nom:"Jueves",hora:13,v:8500, p:0.5},
+    {dow:3,nom:"Jueves",hora:12,v:30125,p:2.2},{dow:3,nom:"Jueves",hora:13,v:34000,p:2.0},
     {dow:3,nom:"Jueves",hora:14,v:28250,p:2.5},{dow:3,nom:"Jueves",hora:15,v:25700,p:2.2},
     {dow:3,nom:"Jueves",hora:16,v:39325,p:3.0},{dow:3,nom:"Jueves",hora:17,v:115675,p:7.5},
-    {dow:3,nom:"Jueves",hora:18,v:108550,p:5.8},{dow:3,nom:"Jueves",hora:19,v:4550,p:0.5},
-    // Viernes
-    {dow:4,nom:"Viernes",hora:8, v:6400, p:0.8},{dow:4,nom:"Viernes",hora:9, v:44900,p:2.8},
+    {dow:3,nom:"Jueves",hora:18,v:108550,p:5.8},{dow:3,nom:"Jueves",hora:19,v:9100, p:1.0},
+    // Viernes (4 días: 09,16,23,30)
+    {dow:4,nom:"Viernes",hora:8, v:12800,p:1.5},{dow:4,nom:"Viernes",hora:9, v:44900,p:2.8},
     {dow:4,nom:"Viernes",hora:10,v:40950,p:2.5},{dow:4,nom:"Viernes",hora:11,v:73750,p:4.2},
     {dow:4,nom:"Viernes",hora:12,v:28550,p:2.0},{dow:4,nom:"Viernes",hora:13,v:45900,p:3.5},
     {dow:4,nom:"Viernes",hora:14,v:27550,p:1.8},{dow:4,nom:"Viernes",hora:15,v:37775,p:2.5},
     {dow:4,nom:"Viernes",hora:16,v:82325,p:6.0},{dow:4,nom:"Viernes",hora:17,v:134800,p:8.2},
-    {dow:4,nom:"Viernes",hora:18,v:117888,p:7.5},{dow:4,nom:"Viernes",hora:19,v:3800,p:0.5},
-    // Sábado
-    {dow:5,nom:"Sábado",hora:9, v:1250, p:0.2},{dow:5,nom:"Sábado",hora:10,v:118925,p:7.0},
-    {dow:5,nom:"Sábado",hora:11,v:95175,p:5.8},{dow:5,nom:"Sábado",hora:12,v:64475,p:3.2},
-    {dow:5,nom:"Sábado",hora:13,v:82525,p:5.0},
-    {dow:5,nom:"Sábado",hora:16,v:153100,p:8.8},{dow:5,nom:"Sábado",hora:17,v:165600,p:9.5},
-    {dow:5,nom:"Sábado",hora:18,v:103750,p:5.5},{dow:5,nom:"Sábado",hora:19,v:11700,p:1.0},
-    // Domingo
+    {dow:4,nom:"Viernes",hora:18,v:117887,p:7.5},{dow:4,nom:"Viernes",hora:19,v:7600, p:1.0},
+    // Sábado (5 días: 02,09,16,23,30)
+    {dow:5,nom:"Sábado",hora:9, v:5000, p:1.0},{dow:5,nom:"Sábado",hora:10,v:104980,p:6.0},
+    {dow:5,nom:"Sábado",hora:11,v:89400,p:5.4},{dow:5,nom:"Sábado",hora:12,v:97350,p:5.5},
+    {dow:5,nom:"Sábado",hora:13,v:111525,p:6.8},{dow:5,nom:"Sábado",hora:14,v:18000,p:2.0},
+    {dow:5,nom:"Sábado",hora:16,v:160720,p:9.4},{dow:5,nom:"Sábado",hora:17,v:180940,p:10.0},
+    {dow:5,nom:"Sábado",hora:18,v:101300,p:5.4},{dow:5,nom:"Sábado",hora:19,v:20325,p:1.5},
+    // Domingo (4 días: 03,10,17,24)
     {dow:6,nom:"Domingo",hora:16,v:139375,p:7.5},{dow:6,nom:"Domingo",hora:17,v:187800,p:10.8},
-    {dow:6,nom:"Domingo",hora:18,v:98450,p:6.0},{dow:6,nom:"Domingo",hora:19,v:20850,p:1.0},
+    {dow:6,nom:"Domingo",hora:18,v:98450,p:6.0},{dow:6,nom:"Domingo",hora:19,v:27800,p:1.3},
   ],
 };
 
@@ -491,7 +491,7 @@ const GF_BASE = 7272537;
 const FACT_BASE = 16271730;
 
 // ── VENTAS MAYO — días y colores correctos ───────────────────────
-const VENTAS_MAP = {2:751533,3:338557,5:504607,6:457196,7:494976,8:649637,9:967666,10:355069,12:644729,13:625126,14:427490,15:586474,16:796436,17:557893,19:504015,20:620345,21:161140};
+const VENTAS_MAP = {2:751400,3:338500,5:504500,6:457100,7:494900,8:649500,9:967500,10:355000,12:644600,13:625000,14:427400,15:586350,16:796300,17:557800,19:503900,20:620200,21:595700,22:491100,23:670800,24:534600,26:511400,27:460000,28:459500,29:851400,30:940500};
 const DIAS_MAYO = Array.from({length:31},(_,i)=>i+1).map(d=>({
   dia:d, v:VENTAS_MAP[d]||0, activo:!!VENTAS_MAP[d],
   fs:[0,6].includes(new Date(2026,4,d).getDay())
@@ -529,13 +529,13 @@ const RANKING = [
   {n:"Dame Números",      u:27, cat:"Café",      rent:27.2,pv:7000, mp:1514,accion:"ok"},
   {n:"Tostado Capresse",  u:25, cat:"Cocina",    rent:17.4,pv:8500, mp:1759,accion:"subir",pvSug:10000},
   {n:"Cheesecake",        u:33, cat:"Pastelería",rent:20.9,pv:8500, mp:2367,accion:"ok"},
-  {n:"Sniker",            u:22, cat:"Pastelería",rent:19.0,pv:5600, mp:1670,accion:"ok"},
+  {n:"Sniker",            u:22, cat:"Pastelería",rent:19.0,pv:5600, mp:2035,accion:"ok"},
   {n:"Alfajor Tita",      u:22, cat:"Pastelería",rent:32.4,pv:3800, mp:623, accion:"potenciar"},
   {n:"Mandarinada",       u:18, cat:"Café",      rent:30.8,pv:4700, mp:847, accion:"potenciar"},
   {n:"Té Woolong",        u:18, cat:"Café",      rent:14.7,pv:4900, mp:1669,accion:"revisar"},
   {n:"Cappu Marplatense", u:14, cat:"Café",      rent:29.1,pv:6200, mp:1220,accion:"potenciar"},
   {n:"Vasca de DDL",      u:10, cat:"Pastelería",rent:18.9,pv:8000, mp:2388,accion:"ok"},
-  {n:"Key Lime",          u:8,  cat:"Pastelería",rent:14.0,pv:7900, mp:2747,accion:"revisar"},
+  {n:"Key Lime",          u:8,  cat:"Pastelería",rent:14.0,pv:7900, mp:3261,accion:"revisar"},
   {n:"Tostón de Perso",   u:8,  cat:"Cocina",    rent:13.0,pv:9200, mp:1828,accion:"subir",pvSug:10500},
   {n:"Espresso largo",    u:9,  cat:"Café",      rent:33.5,pv:3800, mp:582, accion:"potenciar"},
   {n:"Pancakes",          u:7,  cat:"Cocina",    rent:18.0,pv:11000,mp:1800,accion:"ok"},
@@ -1157,9 +1157,9 @@ const PLANILLA_COSTOS = {
     {n:"Chipa",             mp:839,  pv:4000, u:208, cat:"Pastelería"},
     {n:"Cheesecake",        mp:2367, pv:8500, u:33,  cat:"Pastelería esp."},
     {n:"Vasca de DDL",      mp:2388, pv:8000, u:27,  cat:"Pastelería esp."},
-    {n:"Key Lime",          mp:2747, pv:7900, u:16,  cat:"Pastelería esp."},
-    {n:"Sniker",            mp:1670, pv:5600, u:22,  cat:"Pastelería esp."},
-    {n:"Rol de Canela",     mp:275,  pv:3500, u:12,  cat:"Pastelería esp."},
+    {n:"Key Lime",          mp:3261, pv:7900, u:16,  cat:"Pastelería esp."},
+    {n:"Sniker",            mp:2035, pv:5600, u:22,  cat:"Pastelería esp."},
+    {n:"Rol de Canela",     mp:503,  pv:3500, u:12,  cat:"Pastelería esp."},
     {n:"Cookie Vegana",     mp:800,  pv:4100, u:3,   cat:"Pastelería"},
     {n:"Medialuna",         mp:900,  pv:3800, u:133, cat:"Pastelería"},
   ],
@@ -1862,8 +1862,8 @@ function VistaMacro({onSwitch}){
 
   const totalGF=gf.reduce((s,g)=>s+g.monto,0);
   const ventas=DIAS_MAYO.reduce((s,d)=>s+d.v,0);
-  const diasOp=17;
-  const txnTotal=602; // ESTIMADO — reemplazar con dato real de Fudo
+  const diasOp=25; // días reales al 30/05 (Fudo)
+  const txnTotal=953; // tickets reales al 30/05 (Fudo)
   const promDia=Math.round(ventas/diasOp);
   const proyMes=promDia*24;
   const provMes=Math.round(proyMes*provPct);
@@ -2564,7 +2564,7 @@ function VistaMacro({onSwitch}){
             if(!rows.length) return null;
             return rows.reduce((mx,r)=>r.v>mx.v?r:mx,rows[0]);
           }
-          function nomDow(dow){return["","Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][dow];}
+          function nomDow(dow){return["","Mar","Mié","Jue","Vie","Sáb","Dom"][dow];}
 
           return(
             <div>
