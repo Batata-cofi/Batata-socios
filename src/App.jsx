@@ -1168,13 +1168,15 @@ function FichaCosto({prod,totalGF,onClose}){
         }).catch(e=>{console.warn("Error cargando receta:",e);setCargandoReceta(false);});
     }
   },[prod.n]);
-  const mpCalc=ingrs.reduce((s,r)=>s+(r.subtotal||r.gr*r.pu/1000),0);
+  const mpReceta=ingrs.reduce((s,r)=>s+(r.subtotal||r.gr*r.pu),0);
+  const mpOficial=prod.mp||mpReceta; // MP verificado de planilla > suma de receta
   const gfu=prod.pv*totalGF/FACT_BASE;
   const iibb=prod.pv*0.015;
   const tc=prod.pv*0.0501;
-  const ct=mpCalc+gfu+iibb+tc;
+  const ct=mpOficial+gfu+iibb+tc;
   const rent=(prod.pv-ct)/prod.pv*100;
   const rentC=rent>30?C.green:rent>20?C.yellow:C.red;
+  const mpDiff=Math.abs(mpReceta-mpOficial)>50;
   return(
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
       <div style={{background:C.card,borderRadius:14,padding:"24px",width:500,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto",border:`1px solid ${C.border}`}}>
@@ -1190,7 +1192,7 @@ function FichaCosto({prod,totalGF,onClose}){
         <div style={{background:C.card2,borderRadius:10,padding:"14px 16px",marginBottom:16}}>
           <div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:10,textTransform:"uppercase",letterSpacing:".05em"}}>Desglose del costo</div>
           {[
-            {l:"Materia Prima",v:mpCalc,c:C.text},
+            {l:"Materia Prima (verificado)",v:mpOficial,c:C.text},
             {l:`GFU — PV (${fmt(prod.pv)}) × GF (${fmtK(totalGF)}) / Fact. (${fmtK(FACT_BASE)})`,v:gfu,c:C.muted},
             {l:"IIBB (1.5%)",v:iibb,c:C.muted},
             {l:"Tarjeta (5.01%)",v:tc,c:C.muted},
@@ -1264,7 +1266,10 @@ function FichaCosto({prod,totalGF,onClose}){
                 ))}
                 <tr style={{borderTop:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
                   <td colSpan={3} style={{padding:"7px 10px",fontWeight:700}}>Total MP</td>
-                  <td style={{padding:"7px 10px",textAlign:"right",fontWeight:700,color:C.accent}}>{fmt(mpCalc)}</td>
+                  <td style={{padding:"7px 10px",textAlign:"right",fontWeight:700,color:mpDiff?C.yellow:C.accent}}>
+                    {fmt(mpReceta)}
+                    {mpDiff&&<div style={{fontSize:9,color:C.yellow,fontWeight:500,marginTop:2}}>⚠ Difiere del MP verificado ({fmt(mpOficial)})</div>}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1766,7 +1771,7 @@ function VistaMacro({onSwitch}){
         .then(data=>{
           if(!Array.isArray(data)||!data.length) return;
           setStock(data.map(r=>({
-            item:r.item, u:r.unidad, stock:r.stock_actual,
+            _id:r.id, item:r.item, u:r.unidad, stock:r.stock_actual,
             min:r.stock_min, max:r.stock_max, cd:r.consumo_dia,
             icon:r.icono, cat:r.categoria, prov:r.proveedor,
           })));
@@ -2110,7 +2115,8 @@ function VistaMacro({onSwitch}){
               <button onClick={()=>{
                   if(editStock && DATA_SOURCE==="live"){
                     stock.forEach(s=>{
-                      fetch(`${SUPABASE_URL}/rest/v1/stock?item=eq.${encodeURIComponent(s.item)}`,{
+                      if(!s._id) return; // solo guarda items que vinieron de Supabase
+                      fetch(`${SUPABASE_URL}/rest/v1/stock?id=eq.${s._id}`,{
                         method:"PATCH",
                         headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
                         body:JSON.stringify({stock_actual:s.stock,updated_by:"Lautaro",updated_at:new Date().toISOString()})
